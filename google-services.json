@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "404268390321",
+    "project_id": "monai-7af4a",
+    "storage_bucket": "monai-7af4a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:404268390321:android:82da110cf979ea04184f90",
+        "android_client_info": {
+          "package_name": "com.anonymous.Monai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlozNjPrcPPWKtV96DcTvTpIp3s6mty_0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
