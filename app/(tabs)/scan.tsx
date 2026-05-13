@@ -1,5 +1,4 @@
-import * as ImagePicker from 'expo-image-picker'; // Swapped from expo-camera
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,14 +10,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getCustomerInfo, isProCustomer, useSubscription } from '@/services/revenuecat';
+import { useSubscription } from '@/services/revenuecat';
 import { useAuth } from '@/src/context/AuthContext';
 import { analyzeInvestmentGraph } from '@/src/lib/gemini';
-import { getDailyScanCount, incrementDailyScanCount, saveScannedAnalysis } from '@/src/services/storage';
-
-const FREE_DAILY_SCAN_LIMIT = 3;
+import { getDailyScanCount, incrementDailyScanCount, saveScannedAnalysis } from '../../src/services/storage';
 
 function inferAssetKind(text: string): 'stock' | 'crypto' | 'commodity' | 'other' {
   const lowerCase = text.toLowerCase();
@@ -35,27 +35,27 @@ function inferAssetKind(text: string): 'stock' | 'crypto' | 'commodity' | 'other
 }
 
 export default function ScanScreen() {
-  const { user, signInAnonymously } = useAuth();
+  const router = useRouter();
+  const { user } = useAuth();
   const { isPro, isLoading: subscriptionLoading, purchase, refresh } = useSubscription(user?.uid);
-  
+
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [resultText, setResultText] = useState('');
+  const [todayCount, setTodayCount] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [showResultSheet, setShowResultSheet] = useState(false);
-  const [dailyCount, setDailyCount] = useState(0);
 
   useEffect(() => {
     if (!user?.uid) {
-      setDailyCount(0);
+      setTodayCount(0);
       return;
     }
-    getDailyScanCount(user.uid)
-      .then(setDailyCount)
-      .catch(() => setDailyCount(0));
-  }, [user?.uid]);
 
-  const scansLeft = useMemo(() => Math.max(FREE_DAILY_SCAN_LIMIT - dailyCount, 0), [dailyCount]);
+    getDailyScanCount(user.uid)
+      .then(setTodayCount)
+      .catch(() => setTodayCount(0));
+  }, [user?.uid]);
 
   const handleUpgrade = async () => {
     try {
@@ -65,140 +65,135 @@ export default function ScanScreen() {
         await refresh();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not open paywall.';
+      const message = error instanceof Error ? error.message : 'Could not complete purchase.';
       Alert.alert('Upgrade to Pro', message);
     }
   };
 
-  const handlePickAndScan = async () => {
+  const handlePickAndAnalyze = async () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
+
     try {
-      // 1. Auth Check
-      if (!user?.uid) {
-        await signInAnonymously();
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission required', 'Enable photo library access to scan financial charts.');
         return;
       }
 
-      // 2. Subscription/Limit Check
-      const customerInfo = await getCustomerInfo(user.uid);
-      const hasPro = isProCustomer(customerInfo);
-      const latestCount = await getDailyScanCount(user.uid);
-      setDailyCount(latestCount);
-
-      if (!hasPro && latestCount >= FREE_DAILY_SCAN_LIMIT) {
-        setShowPaywall(true);
-        return;
-      }
-
-      // 3. Request Gallery Permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'We need access to your gallery to analyze charts.');
-        return;
-      }
-
-      // 4. Launch Image Picker
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.6,
+        quality: 0.85,
         base64: true,
       });
 
-      if (result.canceled || !result.assets[0].base64) return;
+      if (pickerResult.canceled) {
+        return;
+      }
 
-      const photo = result.assets[0];
-      setImageUri(photo.uri);
-      setIsScanning(true);
+      const selectedAsset = pickerResult.assets[0];
+      if (!selectedAsset?.base64) {
+        Alert.alert('Invalid image', 'Please select another image.');
+        return;
+      }
 
-      // 5. Gemini Analysis
-      const analysis = await analyzeInvestmentGraph(photo.base64, 'image/jpeg');
+      setImageUri(selectedAsset.uri);
+      setIsProcessing(true);
 
-      // 6. Save and Increment
+      const analysis = await analyzeInvestmentGraph(selectedAsset.base64, selectedAsset.mimeType ?? 'image/jpeg');
+
       await saveScannedAnalysis(user.uid, {
-        title: 'Chart Scan',
+        title: 'Financial Graph Analysis',
         assetKind: inferAssetKind(analysis),
         analysisText: analysis,
-        imageBase64: photo.base64,
+        imageBase64: selectedAsset.base64,
       });
 
-      if (!hasPro) {
-        await incrementDailyScanCount(user.uid);
-        setDailyCount((current) => current + 1);
-      }
+      await incrementDailyScanCount(user.uid);
+      setTodayCount((count) => count + 1);
 
       setResultText(analysis);
       setShowResultSheet(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Analysis failed. Please try again.';
+      const message = error instanceof Error ? error.message : 'Image analysis failed.';
       Alert.alert('Scan error', message);
     } finally {
-      setIsScanning(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.topBar}>
-        <Text style={styles.title}>Analyze</Text>
-        <View style={[styles.statusPill, isPro ? styles.statusPillPro : styles.statusPillFree]}>
-          <Text style={styles.statusPillText}>
-            {subscriptionLoading ? 'Loading…' : isPro ? 'Pro' : `${scansLeft} left`}
-          </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Scan</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{subscriptionLoading ? 'Checking' : isPro ? 'PRO' : 'FREE'}</Text>
+          </View>
         </View>
+
+        <Text style={styles.metaText}>Today&apos;s scans: {todayCount}</Text>
+
+        <Pressable style={({ pressed }) => [styles.previewCard, pressed && styles.pressed]} onPress={handlePickAndAnalyze}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.previewImage} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Text style={styles.placeholderTitle}>Select graph image</Text>
+              <Text style={styles.placeholderSub}>Import a chart from your photo library</Text>
+            </View>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={handlePickAndAnalyze}
+          style={({ pressed }) => [styles.analyzeButton, pressed && styles.pressed]}
+          disabled={isProcessing}>
+          {isProcessing ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.analyzeButtonText}>Analyze with Gemini</Text>
+          )}
+        </Pressable>
       </View>
 
-      <Pressable style={styles.cameraCard} onPress={handlePickAndScan}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.previewImage} />
-        ) : (
-          <View style={styles.uploadPlaceholder}>
-            <Text style={styles.uploadIcon}>📈</Text>
-            <Text style={styles.uploadText}>Tap to select a chart screenshot</Text>
-          </View>
-        )}
-      </Pressable>
-
-      <Pressable 
-        style={({ pressed }) => [styles.scanButton, pressed && styles.buttonPressed]} 
-        onPress={handlePickAndScan} 
-        disabled={isScanning}
-      >
-        {isScanning ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.scanButtonText}>Upload & Analyze Graph</Text>
-        )}
-      </Pressable>
-
-      {/* Paywall Modal */}
-      <Modal visible={showPaywall} animationType="slide" transparent>
-        <View style={styles.overlay}>
+      <Modal visible={showPaywall} transparent animationType="fade" onRequestClose={() => setShowPaywall(false)}>
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.paywallCard}>
-            <Text style={styles.paywallTitle}>Free limit reached</Text>
-            <Text style={styles.paywallText}>
-              You used {FREE_DAILY_SCAN_LIMIT} free scans today. Upgrade to Pro for unlimited chart scans.
+            <Text style={styles.paywallTitle}>Monai Pro</Text>
+            <Text style={styles.paywallCopy}>
+              Upgrade to Pro to unlock AI chart scans, deeper analysis, and premium fintech insights.
             </Text>
-            <Pressable style={styles.upgradeButton} onPress={handleUpgrade}>
-              <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+            <Pressable style={({ pressed }) => [styles.upgradeButton, pressed && styles.pressed]} onPress={handleUpgrade}>
+              <Text style={styles.upgradeButtonText}>Upgrade</Text>
             </Pressable>
-            <Pressable style={styles.dismissButton} onPress={() => setShowPaywall(false)}>
-              <Text style={styles.dismissButtonText}>Maybe later</Text>
+            <Pressable style={({ pressed }) => [styles.dismissButton, pressed && styles.pressed]} onPress={() => setShowPaywall(false)}>
+              <Text style={styles.dismissButtonText}>Not now</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* Result Bottom Sheet */}
-      <Modal visible={showResultSheet} animationType="slide" transparent>
-        <View style={styles.bottomSheetBackdrop}>
-          <View style={styles.bottomSheet}>
-            <View style={styles.bottomSheetHandle} />
-            <Text style={styles.bottomSheetTitle}>Monai AI Analysis</Text>
-            <ScrollView style={styles.resultScroll}>
-              <Text style={styles.resultBodyText}>{resultText}</Text>
+      <Modal visible={showResultSheet} transparent animationType="slide" onRequestClose={() => setShowResultSheet(false)}>
+        <View style={styles.sheetBackdrop}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Gemini Analysis</Text>
+            <ScrollView style={styles.sheetScroll}>
+              <Text style={styles.sheetBody}>{resultText}</Text>
             </ScrollView>
-            <Pressable style={styles.closeSheetButton} onPress={() => setShowResultSheet(false)}>
-              <Text style={styles.closeSheetText}>Close</Text>
+            <Pressable style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]} onPress={() => setShowResultSheet(false)}>
+              <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>
           </View>
         </View>
@@ -208,44 +203,183 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F6F7FC', paddingHorizontal: 16, paddingBottom: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 30, fontWeight: '700', color: '#0E1528' },
-  statusPill: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  statusPillFree: { backgroundColor: '#E8EDFF' },
-  statusPillPro: { backgroundColor: '#DDF6E9' },
-  statusPillText: { fontSize: 12, fontWeight: '700', color: '#24304A' },
-  cameraCard: { 
-    flex: 1, 
-    borderRadius: 28, 
-    borderWidth: 1, 
-    borderColor: '#E5E8F3', 
-    backgroundColor: '#FFFFFF', 
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center'
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  uploadPlaceholder: { alignItems: 'center' },
-  uploadIcon: { fontSize: 40, marginBottom: 10 },
-  uploadText: { color: '#8E94A7', fontWeight: '500' },
-  scanButton: { marginTop: 14, backgroundColor: '#161E33', borderRadius: 18, paddingVertical: 15, alignItems: 'center' },
-  scanButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  buttonPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  overlay: { flex: 1, backgroundColor: 'rgba(10, 14, 28, 0.45)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  paywallCard: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, gap: 12 },
-  paywallTitle: { fontSize: 22, fontWeight: '700', color: '#0E1528' },
-  paywallText: { color: '#58617A', lineHeight: 20 },
-  upgradeButton: { marginTop: 4, backgroundColor: '#6A72FF', borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
-  upgradeButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  dismissButton: { borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#DCE1EF' },
-  dismissButtonText: { color: '#3B445D', fontWeight: '600' },
-  bottomSheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(10, 14, 28, 0.45)' },
-  bottomSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 24, maxHeight: '80%' },
-  bottomSheetHandle: { alignSelf: 'center', width: 42, height: 5, borderRadius: 999, backgroundColor: '#D2D7E5', marginBottom: 12 },
-  bottomSheetTitle: { fontSize: 18, fontWeight: '700', color: '#0E1528', marginBottom: 10 },
-  resultScroll: { maxHeight: 400 },
-  resultBodyText: { color: '#3B445D', lineHeight: 22, fontSize: 15 },
-  closeSheetButton: { marginTop: 14, backgroundColor: '#161E33', borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
-  closeSheetText: { color: '#FFFFFF', fontWeight: '700' },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  badge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#000000',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metaText: {
+    color: '#6E6E73',
+    marginBottom: 16,
+    fontSize: 13,
+  },
+  previewCard: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  placeholder: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  placeholderTitle: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  placeholderSub: {
+    color: '#6E6E73',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  analyzeButton: {
+    marginTop: 16,
+    backgroundColor: '#000000',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  analyzeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  paywallCard: {
+    width: '100%',
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    padding: 20,
+  },
+  paywallTitle: {
+    color: '#000000',
+    fontSize: 26,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  paywallCopy: {
+    color: '#3A3A3C',
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  upgradeButton: {
+    backgroundColor: '#000000',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  dismissButton: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dismissButtonText: {
+    color: '#000000',
+    fontWeight: '600',
+  },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingBottom: 24,
+    paddingTop: 10,
+    minHeight: '52%',
+    maxHeight: '82%',
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 48,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#D1D1D6',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  sheetScroll: {
+    maxHeight: 420,
+  },
+  sheetBody: {
+    color: '#1C1C1E',
+    lineHeight: 22,
+    fontSize: 15,
+  },
+  closeButton: {
+    marginTop: 14,
+    backgroundColor: '#000000',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.86,
+  },
 });

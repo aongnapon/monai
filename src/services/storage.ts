@@ -1,4 +1,16 @@
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
+} from '@react-native-firebase/firestore';
 
 export type AssetKind = 'stock' | 'crypto' | 'commodity' | 'other';
 
@@ -20,15 +32,18 @@ const ANALYSES_COLLECTION = 'scannedAnalyses';
 const USAGE_COLLECTION = 'usage';
 const DAILY_SCAN_PREFIX = 'dailyScan_';
 
+const database = getFirestore();
+
+function getUserDoc(uid: string) {
+  return doc(database, USERS_COLLECTION, uid);
+}
+
 function getAnalysesCollection(uid: string) {
-  return firestore()
-    .collection(USERS_COLLECTION)
-    .doc(uid)
-    .collection(ANALYSES_COLLECTION);
+  return collection(getUserDoc(uid), ANALYSES_COLLECTION);
 }
 
 function getUsageCollection(uid: string) {
-  return firestore().collection(USERS_COLLECTION).doc(uid).collection(USAGE_COLLECTION);
+  return collection(getUserDoc(uid), USAGE_COLLECTION);
 }
 
 function toDateKey(date = new Date()) {
@@ -42,27 +57,25 @@ function getDailyUsageDocId(date = new Date()) {
   return `${DAILY_SCAN_PREFIX}${toDateKey(date)}`;
 }
 
-function isFirestoreTimestamp(value: unknown): value is FirebaseFirestoreTypes.Timestamp {
-  if (!value || typeof value !== 'object') {
-    return false;
+function toIsoString(value: unknown) {
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
   }
 
-  const maybeTimestamp = value as { toDate?: unknown };
-  return typeof maybeTimestamp.toDate === 'function';
-}
-
-function toIsoString(value: unknown) {
-  if (isFirestoreTimestamp(value)) {
-    return value.toDate().toISOString();
+  if (value && typeof value === 'object' && 'toDate' in value) {
+    const withToDate = value as { toDate?: () => Date };
+    if (typeof withToDate.toDate === 'function') {
+      return withToDate.toDate().toISOString();
+    }
   }
 
   return new Date().toISOString();
 }
 
 export async function saveScannedAnalysis(uid: string, analysis: ScannedAnalysisInput) {
-  const documentRef = await getAnalysesCollection(uid).add({
+  const documentRef = await addDoc(getAnalysesCollection(uid), {
     ...analysis,
-    createdAt: firestore.FieldValue.serverTimestamp(),
+    createdAt: serverTimestamp(),
   });
 
   return documentRef.id;
@@ -72,31 +85,33 @@ export function subscribeToScannedAnalyses(
   uid: string,
   onResults: (results: ScannedAnalysisRecord[]) => void,
 ) {
-  return getAnalysesCollection(uid)
-    .orderBy('createdAt', 'desc')
-    .onSnapshot((snapshot) => {
-      const parsedResults: ScannedAnalysisRecord[] = snapshot.docs.map((doc) => {
-        const data = doc.data() as ScannedAnalysisInput & {
-          createdAt?: FirebaseFirestoreTypes.Timestamp;
-        };
+  const analysesQuery = query(getAnalysesCollection(uid), orderBy('createdAt', 'desc'));
 
-        return {
-          id: doc.id,
-          title: data.title,
-          symbol: data.symbol,
-          assetKind: data.assetKind,
-          analysisText: data.analysisText,
-          imageBase64: data.imageBase64,
-          createdAt: toIsoString(data.createdAt),
-        };
-      });
+  return onSnapshot(analysesQuery, (snapshot) => {
+    const parsedResults: ScannedAnalysisRecord[] = snapshot.docs.map((analysisDoc) => {
+      const data = analysisDoc.data() as ScannedAnalysisInput & {
+        createdAt?: Timestamp;
+      };
 
-      onResults(parsedResults);
+      return {
+        id: analysisDoc.id,
+        title: data.title,
+        symbol: data.symbol,
+        assetKind: data.assetKind,
+        analysisText: data.analysisText,
+        imageBase64: data.imageBase64,
+        createdAt: toIsoString(data.createdAt),
+      };
     });
+
+    onResults(parsedResults);
+  });
 }
 
 export async function getDailyScanCount(uid: string, date = new Date()) {
-  const usageSnapshot = await getUsageCollection(uid).doc(getDailyUsageDocId(date)).get();
+  const usageDocRef = doc(getUsageCollection(uid), getDailyUsageDocId(date));
+  const usageSnapshot = await getDoc(usageDocRef);
+
   if (!usageSnapshot.exists()) {
     return 0;
   }
@@ -106,18 +121,20 @@ export async function getDailyScanCount(uid: string, date = new Date()) {
 }
 
 export async function incrementDailyScanCount(uid: string, date = new Date()) {
-  const usageDocRef = getUsageCollection(uid).doc(getDailyUsageDocId(date));
+  const usageDocRef = doc(getUsageCollection(uid), getDailyUsageDocId(date));
 
-  await firestore().runTransaction(async (transaction) => {
+  await runTransaction(database, async (transaction) => {
     const currentDoc = await transaction.get(usageDocRef);
-    const currentCount = currentDoc.exists() ? ((currentDoc.data() as { count?: number }).count ?? 0) : 0;
+    const currentCount = currentDoc.exists()
+      ? ((currentDoc.data() as { count?: number }).count ?? 0)
+      : 0;
 
     transaction.set(
       usageDocRef,
       {
         dateKey: toDateKey(date),
         count: currentCount + 1,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: serverTimestamp(),
       },
       { merge: true },
     );

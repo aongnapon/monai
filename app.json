@@ -36,9 +36,10 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
-        "expo-camera",
+        "expo-image-picker",
         {
-          "cameraPermission": "Allow Monai to access your camera for investment chart scans."
+          "photosPermission": "Allow Monai to access your photos to analyze financial graphs.",
+          "cameraPermission": "Allow Monai to access your camera when selecting financial graph images."
         }
       ]
     ],

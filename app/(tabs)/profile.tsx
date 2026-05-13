@@ -1,62 +1,83 @@
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/context/AuthContext';
 import { useSubscription } from '@/services/revenuecat';
+import { useAuth } from '@/src/context/AuthContext';
 
 export default function ProfileScreen() {
-  const { user, initializing, signInAnonymously, signOut } = useAuth();
-  const { isPro, isLoading: isSubscriptionLoading, purchase } = useSubscription(user?.uid);
-
-  const handleAuthAction = async () => {
-    try {
-      if (user) {
-        await signOut();
-      } else {
-        await signInAnonymously();
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not update login state.';
-      Alert.alert('Auth state', message);
-    }
-  };
+  const router = useRouter();
+  const { user, signOutUser } = useAuth();
+  const { isPro, isLoading, purchase } = useSubscription(user?.uid);
 
   const handleUpgrade = async () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+
     try {
       const unlocked = await purchase();
       if (unlocked) {
-        Alert.alert('You are now Pro', 'Monai Pro has been activated.');
+        Alert.alert('Monai Pro', 'Your Pro subscription is now active.');
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not open paywall.';
+      const message = error instanceof Error ? error.message : 'Could not start purchase flow.';
       Alert.alert('Upgrade to Pro', message);
     }
   };
 
-  const subscriptionLabel = isSubscriptionLoading ? 'Checking…' : isPro ? 'Pro' : 'Free';
+  const handleSignOut = async () => {
+    try {
+      await signOutUser();
+      router.push('/auth/login');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not sign out.';
+      Alert.alert('Sign out', message);
+    }
+  };
+
+  const subscriptionStatus = isLoading ? 'Checking' : isPro ? 'PRO' : 'FREE';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.card}>
           <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>{initializing ? 'Loading user…' : user?.uid ?? 'Not logged in'}</Text>
+          <Text style={styles.subtitle}>{user?.email ?? 'No account signed in'}</Text>
 
           <View style={[styles.badge, isPro ? styles.badgePro : styles.badgeFree]}>
-            <Text style={styles.badgeText}>Subscription: {subscriptionLabel}</Text>
+            <Text style={styles.badgeText}>Subscription Status: {subscriptionStatus}</Text>
           </View>
 
-          <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={handleAuthAction}>
-            <Text style={styles.primaryButtonText}>{user ? 'Log Out' : 'Log In'}</Text>
-          </Pressable>
+          {!user ? (
+            <>
+              <Link href="/auth/login" asChild>
+                <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.primaryButtonText}>Sign In</Text>
+                </Pressable>
+              </Link>
+              <Link href="/auth/register" asChild>
+                <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.secondaryButtonText}>Create Account</Text>
+                </Pressable>
+              </Link>
+            </>
+          ) : (
+            <>
+              {!isPro && (
+                <Pressable
+                  style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+                  onPress={handleUpgrade}
+                  disabled={isLoading}>
+                  <Text style={styles.primaryButtonText}>Upgrade to Pro</Text>
+                </Pressable>
+              )}
 
-          {!isPro && (
-            <Pressable
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-              onPress={handleUpgrade}
-              disabled={!user || isSubscriptionLoading}>
-              <Text style={styles.secondaryButtonText}>Upgrade to Pro</Text>
-            </Pressable>
+              <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} onPress={handleSignOut}>
+                <Text style={styles.secondaryButtonText}>Sign Out</Text>
+              </Pressable>
+            </>
           )}
         </View>
       </View>
@@ -67,55 +88,52 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F8FC',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
-    padding: 20,
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E8EAF3',
+    borderColor: '#D1D1D6',
+    backgroundColor: '#FFFFFF',
     padding: 22,
-    shadowColor: '#161A2D',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 16,
-    elevation: 3,
     gap: 14,
   },
   title: {
-    fontSize: 30,
+    color: '#000000',
+    fontSize: 32,
     fontWeight: '700',
-    color: '#0E1528',
   },
   subtitle: {
-    fontSize: 13,
-    color: '#7A859F',
+    color: '#6E6E73',
+    fontSize: 14,
   },
   badge: {
     alignSelf: 'flex-start',
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   badgeFree: {
-    backgroundColor: '#E8EDFF',
+    backgroundColor: '#F2F2F7',
   },
   badgePro: {
-    backgroundColor: '#DDF6E9',
+    backgroundColor: '#FFFFFF',
   },
   badgeText: {
+    color: '#000000',
     fontSize: 12,
     fontWeight: '700',
-    color: '#24304A',
   },
   primaryButton: {
-    backgroundColor: '#141C2F',
-    borderRadius: 16,
+    backgroundColor: '#000000',
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
@@ -125,18 +143,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   secondaryButton: {
-    backgroundColor: '#6A72FF',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    paddingVertical: 13,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  buttonPressed: {
+  pressed: {
     opacity: 0.86,
-    transform: [{ scale: 0.99 }],
   },
 });

@@ -7,12 +7,8 @@ const geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
 const geminiVisionModel = geminiClient.getGenerativeModel({ model: GEMINI_MODEL });
 
 export async function analyzeInvestmentGraph(base64Image: string, mimeType = 'image/jpeg') {
-  const prompt = [
-    'You are Monai AI, an investment learning coach.',
-    'Analyze this chart image (stock, crypto, or commodity).',
-    'Keep the response educational and beginner-friendly.',
-    'Provide: market type, trend direction, key support/resistance levels, risk notes, and one learning tip.',
-  ].join(' ');
+  const prompt =
+    'Analyze this financial graph and provide a professional, concise analysis for a fintech user.';
 
   const result = await geminiVisionModel.generateContent([
     prompt,

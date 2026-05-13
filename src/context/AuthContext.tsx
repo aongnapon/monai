@@ -1,13 +1,22 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  FirebaseAuthTypes,
+  linkWithCredential,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from '@react-native-firebase/auth';
 
 import { firebaseAuth } from '@/src/lib/firebase';
 
 type AuthContextValue = {
   user: FirebaseAuthTypes.User | null;
   initializing: boolean;
-  signInAnonymously: () => Promise<FirebaseAuthTypes.UserCredential>;
-  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<FirebaseAuthTypes.UserCredential>;
+  register: (email: string, password: string) => Promise<FirebaseAuthTypes.UserCredential>;
+  signOutUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -21,7 +30,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = firebaseAuth.onAuthStateChanged((nextUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);
       setInitializing(false);
     });
@@ -29,12 +38,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return unsubscribe;
   }, []);
 
+  const signIn = (email: string, password: string) =>
+    signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+
+  const register = async (email: string, password: string) => {
+    const normalizedEmail = email.trim();
+    const currentUser = firebaseAuth.currentUser;
+
+    if (currentUser?.isAnonymous) {
+      const credential = EmailAuthProvider.credential(normalizedEmail, password);
+      return linkWithCredential(currentUser, credential);
+    }
+
+    return createUserWithEmailAndPassword(firebaseAuth, normalizedEmail, password);
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       initializing,
-      signInAnonymously: () => firebaseAuth.signInAnonymously(),
-      signOut: () => firebaseAuth.signOut(),
+      signIn,
+      register,
+      signOutUser: () => signOut(firebaseAuth),
     }),
     [initializing, user],
   );
