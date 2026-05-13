@@ -17,6 +17,8 @@ export type ScannedAnalysisRecord = ScannedAnalysisInput & {
 
 const USERS_COLLECTION = 'users';
 const ANALYSES_COLLECTION = 'scannedAnalyses';
+const USAGE_COLLECTION = 'usage';
+const DAILY_SCAN_PREFIX = 'dailyScan_';
 
 function getAnalysesCollection(uid: string) {
   return firestore()
@@ -25,9 +27,33 @@ function getAnalysesCollection(uid: string) {
     .collection(ANALYSES_COLLECTION);
 }
 
+function getUsageCollection(uid: string) {
+  return firestore().collection(USERS_COLLECTION).doc(uid).collection(USAGE_COLLECTION);
+}
+
+function toDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDailyUsageDocId(date = new Date()) {
+  return `${DAILY_SCAN_PREFIX}${toDateKey(date)}`;
+}
+
+function isFirestoreTimestamp(value: unknown): value is FirebaseFirestoreTypes.Timestamp {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const maybeTimestamp = value as { toDate?: unknown };
+  return typeof maybeTimestamp.toDate === 'function';
+}
+
 function toIsoString(value: unknown) {
-  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    return (value as FirebaseFirestoreTypes.Timestamp).toDate().toISOString();
+  if (isFirestoreTimestamp(value)) {
+    return value.toDate().toISOString();
   }
 
   return new Date().toISOString();
@@ -67,4 +93,33 @@ export function subscribeToScannedAnalyses(
 
       onResults(parsedResults);
     });
+}
+
+export async function getDailyScanCount(uid: string, date = new Date()) {
+  const usageSnapshot = await getUsageCollection(uid).doc(getDailyUsageDocId(date)).get();
+  if (!usageSnapshot.exists()) {
+    return 0;
+  }
+
+  const data = usageSnapshot.data() as { count?: number } | undefined;
+  return data?.count ?? 0;
+}
+
+export async function incrementDailyScanCount(uid: string, date = new Date()) {
+  const usageDocRef = getUsageCollection(uid).doc(getDailyUsageDocId(date));
+
+  await firestore().runTransaction(async (transaction) => {
+    const currentDoc = await transaction.get(usageDocRef);
+    const currentCount = currentDoc.exists() ? ((currentDoc.data() as { count?: number }).count ?? 0) : 0;
+
+    transaction.set(
+      usageDocRef,
+      {
+        dateKey: toDateKey(date),
+        count: currentCount + 1,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
 }

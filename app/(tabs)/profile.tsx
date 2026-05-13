@@ -1,292 +1,142 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/src/context/AuthContext';
-import { useSubscription } from '@/src/hooks/useSubscription';
-import { ScannedAnalysisRecord, subscribeToScannedAnalyses } from '@/src/services/storage';
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
-}
+import { useSubscription } from '@/services/revenuecat';
 
 export default function ProfileScreen() {
-  const { user, initializing, signInAnonymously } = useAuth();
-  const { isPro, isLoading: subscriptionLoading, purchasePackage } = useSubscription(user?.uid);
-  const [savedAnalyses, setSavedAnalyses] = useState<ScannedAnalysisRecord[]>([]);
-  const [analysesLoading, setAnalysesLoading] = useState(true);
-  const [isPurchasing, setIsPurchasing] = useState(false);
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const { user, initializing, signInAnonymously, signOut } = useAuth();
+  const { isPro, isLoading: isSubscriptionLoading, purchase } = useSubscription(user?.uid);
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setSavedAnalyses([]);
-      setAnalysesLoading(false);
-      return;
-    }
-
-    setAnalysesLoading(true);
-    const unsubscribe = subscribeToScannedAnalyses(user.uid, (results) => {
-      setSavedAnalyses(results);
-      setAnalysesLoading(false);
-    });
-
-    return unsubscribe;
-  }, [user?.uid]);
-
-  const membershipLabel = useMemo(() => {
-    if (subscriptionLoading) {
-      return 'Checking...';
-    }
-
-    return isPro ? 'PRO' : 'Free';
-  }, [isPro, subscriptionLoading]);
-
-  const handleCreateAccount = async () => {
+  const handleAuthAction = async () => {
     try {
-      setIsCreatingAccount(true);
-      await signInAnonymously();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not create your account right now.';
-      Alert.alert('Login error', message);
-    } finally {
-      setIsCreatingAccount(false);
-    }
-  };
-
-  const handleTurnPro = async () => {
-    try {
-      setIsPurchasing(true);
-      const unlocked = await purchasePackage();
-      if (unlocked) {
-        Alert.alert('Welcome to Pro', 'Your Pro features are now active.');
+      if (user) {
+        await signOut();
+      } else {
+        await signInAnonymously();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Purchase did not complete.';
-      Alert.alert('Turn Pro', message);
-    } finally {
-      setIsPurchasing(false);
+      const message = error instanceof Error ? error.message : 'Could not update login state.';
+      Alert.alert('Auth state', message);
     }
   };
 
-  if (initializing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6670F5" />
-      </View>
-    );
-  }
+  const handleUpgrade = async () => {
+    try {
+      const unlocked = await purchase();
+      if (unlocked) {
+        Alert.alert('You are now Pro', 'Monai Pro has been activated.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open paywall.';
+      Alert.alert('Upgrade to Pro', message);
+    }
+  };
+
+  const subscriptionLabel = isSubscriptionLoading ? 'Checking…' : isPro ? 'Pro' : 'Free';
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent}>
-      <View style={styles.profileCard}>
-        <View>
-          <Text style={styles.profileTitle}>Monai Profile</Text>
-          <Text style={styles.profileSubtitle}>{user?.uid ?? 'No account connected'}</Text>
-        </View>
-        <View style={[styles.badge, isPro ? styles.proBadge : styles.freeBadge]}>
-          <Text style={styles.badgeText}>{membershipLabel}</Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.subtitle}>{initializing ? 'Loading user…' : user?.uid ?? 'Not logged in'}</Text>
 
-      {!user?.uid && (
-        <Pressable
-          onPress={handleCreateAccount}
-          style={({ pressed }) => [
-            styles.accountButton,
-            pressed && styles.buttonPressed,
-            isCreatingAccount && styles.disabledButton,
-          ]}
-          disabled={isCreatingAccount}>
-          <Text style={styles.accountButtonText}>
-            {isCreatingAccount ? 'Creating account...' : 'Create Free Account'}
-          </Text>
-        </Pressable>
-      )}
-
-      <View style={styles.listCard}>
-        <Text style={styles.sectionTitle}>Saved Analyses</Text>
-        {analysesLoading ? (
-          <View style={styles.centeredRow}>
-            <ActivityIndicator color="#6670F5" />
+          <View style={[styles.badge, isPro ? styles.badgePro : styles.badgeFree]}>
+            <Text style={styles.badgeText}>Subscription: {subscriptionLabel}</Text>
           </View>
-        ) : savedAnalyses.length === 0 ? (
-          <Text style={styles.emptyState}>No scans yet. Your AI chart insights will appear here.</Text>
-        ) : (
-          savedAnalyses.map((item) => (
-            <View key={item.id} style={styles.analysisItem}>
-              <View style={styles.analysisHeader}>
-                <Text style={styles.analysisTitle}>{item.title}</Text>
-                <Text style={styles.analysisKind}>{item.assetKind.toUpperCase()}</Text>
-              </View>
-              <Text style={styles.analysisMeta}>
-                {item.symbol ? `${item.symbol} - ` : ''}
-                {formatDate(item.createdAt)}
-              </Text>
-              <Text style={styles.analysisBody} numberOfLines={4}>
-                {item.analysisText}
-              </Text>
-            </View>
-          ))
-        )}
-      </View>
 
-      {!isPro && (
-        <Pressable
-          onPress={handleTurnPro}
-          style={({ pressed }) => [
-            styles.turnProButton,
-            pressed && styles.buttonPressed,
-            (isPurchasing || !user?.uid) && styles.disabledButton,
-          ]}
-          disabled={isPurchasing || !user?.uid}>
-          <Text style={styles.turnProText}>{isPurchasing ? 'Opening paywall...' : 'Turn Pro'}</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+          <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]} onPress={handleAuthAction}>
+            <Text style={styles.primaryButtonText}>{user ? 'Log Out' : 'Log In'}</Text>
+          </Pressable>
+
+          {!isPro && (
+            <Pressable
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+              onPress={handleUpgrade}
+              disabled={!user || isSubscriptionLoading}>
+              <Text style={styles.secondaryButtonText}>Upgrade to Pro</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    padding: 18,
-    gap: 16,
-    backgroundColor: '#F3F5FF',
-    paddingBottom: 40,
-  },
-  centered: {
+  safeArea: {
     flex: 1,
-    alignItems: 'center',
+    backgroundColor: '#F7F8FC',
+  },
+  container: {
+    flex: 1,
+    padding: 20,
     justifyContent: 'center',
-    backgroundColor: '#F3F5FF',
   },
-  centeredRow: {
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  profileCard: {
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    padding: 18,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#E7E9FB',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#3D3F62',
+    borderColor: '#E8EAF3',
+    padding: 22,
+    shadowColor: '#161A2D',
     shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 16,
+    elevation: 3,
+    gap: 14,
   },
-  profileTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#24294D',
+  title: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#0E1528',
   },
-  profileSubtitle: {
-    marginTop: 6,
-    color: '#8890B3',
-    maxWidth: 200,
+  subtitle: {
+    fontSize: 13,
+    color: '#7A859F',
   },
   badge: {
+    alignSelf: 'flex-start',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  freeBadge: {
-    backgroundColor: '#EDF0FF',
+  badgeFree: {
+    backgroundColor: '#E8EDFF',
   },
-  proBadge: {
-    backgroundColor: '#DFF7E8',
+  badgePro: {
+    backgroundColor: '#DDF6E9',
   },
   badgeText: {
-    fontWeight: '800',
-    color: '#2B2E4F',
-  },
-  listCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E7E9FB',
-    padding: 16,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#24294D',
-  },
-  emptyState: {
-    color: '#8C92B3',
-    paddingVertical: 8,
-  },
-  analysisItem: {
-    backgroundColor: '#F8F9FF',
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#EBEDFF',
-    gap: 4,
-  },
-  analysisHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  analysisTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#2E335B',
-    flex: 1,
+    color: '#24304A',
   },
-  analysisKind: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#6670F5',
-  },
-  analysisMeta: {
-    color: '#7D84A9',
-    fontSize: 12,
-  },
-  analysisBody: {
-    color: '#3B4068',
-    lineHeight: 20,
-  },
-  turnProButton: {
-    backgroundColor: '#6670F5',
-    borderRadius: 18,
+  primaryButton: {
+    backgroundColor: '#141C2F',
+    borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  turnProText: {
+  primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  accountButton: {
-    backgroundColor: '#ECF9F0',
+  secondaryButton: {
+    backgroundColor: '#6A72FF',
     borderRadius: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  accountButtonText: {
-    color: '#1D7C4C',
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '700',
   },
   buttonPressed: {
     opacity: 0.86,
     transform: [{ scale: 0.99 }],
-  },
-  disabledButton: {
-    opacity: 0.55,
   },
 });

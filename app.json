@@ -34,7 +34,13 @@
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Monai to access your camera for investment chart scans."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
