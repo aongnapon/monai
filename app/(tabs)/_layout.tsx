@@ -72,6 +72,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="user-circle-o" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{
+          href: null, // Hide from tab bar
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

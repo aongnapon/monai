@@ -14,12 +14,22 @@ import {
 
 export type AssetKind = 'stock' | 'crypto' | 'commodity' | 'other';
 
+export type Trend = 'bullish' | 'bearish' | 'neutral';
+
+export type ChartPoint = {
+  timestamp: number;
+  value: number;
+};
+
 export type ScannedAnalysisInput = {
   title: string;
   symbol?: string;
   assetKind: AssetKind;
   analysisText: string;
   imageBase64?: string;
+  trend: Trend;
+  chartData: string; // Stringified array of ChartPoint
+  assetName: string;
 };
 
 export type ScannedAnalysisRecord = ScannedAnalysisInput & {
@@ -107,6 +117,9 @@ export function subscribeToScannedAnalyses(
         assetKind: data.assetKind,
         analysisText: data.analysisText,
         imageBase64: data.imageBase64,
+        trend: data.trend,
+        chartData: data.chartData,
+        assetName: data.assetName,
         createdAt: toIsoString(data.createdAt),
       };
     });
