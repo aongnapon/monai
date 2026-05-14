@@ -72,6 +72,13 @@ function toIsoString(value: unknown) {
   return new Date().toISOString();
 }
 
+export async function setUserProStatus(uid: string, isPro: boolean) {
+  const userDocRef = getUserDoc(uid);
+  await runTransaction(database, async (transaction) => {
+    transaction.set(userDocRef, { isPro, updatedAt: serverTimestamp() }, { merge: true });
+  });
+}
+
 export async function saveScannedAnalysis(uid: string, analysis: ScannedAnalysisInput) {
   const documentRef = await addDoc(getAnalysesCollection(uid), {
     ...analysis,

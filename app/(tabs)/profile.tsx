@@ -1,14 +1,23 @@
+import { useEffect } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
 import { useSubscription } from '@/services/revenuecat';
 import { useAuth } from '@/src/context/AuthContext';
+import { setUserProStatus } from '@/src/services/storage';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOutUser } = useAuth();
-  const { isPro, isLoading, purchase } = useSubscription(user?.uid);
+  const { isPro, isLoading } = useSubscription(user?.uid);
+
+  useEffect(() => {
+    if (user && isPro) {
+      setUserProStatus(user.uid, true);
+    }
+  }, [user, isPro]);
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -17,8 +26,10 @@ export default function ProfileScreen() {
     }
 
     try {
-      const unlocked = await purchase();
-      if (unlocked) {
+      const result = await RevenueCatUI.presentPaywall();
+
+      if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
+        await setUserProStatus(user.uid, true);
         Alert.alert('Monai Pro', 'Your Pro subscription is now active.');
       }
     } catch (error) {
