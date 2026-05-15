@@ -117,7 +117,7 @@ export function subscribeToScannedAnalyses(
         assetKind: data.assetKind,
         analysisText: data.analysisText,
         imageBase64: data.imageBase64,
-        trend: data.trend,
+        trend: data.trend || 'neutral',
         chartData: data.chartData,
         assetName: data.assetName,
         createdAt: toIsoString(data.createdAt),

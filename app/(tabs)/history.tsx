@@ -60,7 +60,7 @@ export default function HistoryScreen() {
             <View style={[styles.miniTrendBadge, { backgroundColor: getTrendColor(item.trend) + '20' }]}>
               {renderTrendIcon(item.trend)}
               <Text style={[styles.miniTrendText, { color: getTrendColor(item.trend) }]}>
-                {item.trend.toUpperCase()}
+                {(item.trend || 'neutral').toUpperCase()}
               </Text>
             </View>
           </View>
@@ -115,7 +115,7 @@ export default function HistoryScreen() {
                   <View style={[styles.trendBadge, { backgroundColor: getTrendColor(selectedScan.trend) + '20' }]}>
                     <View style={[styles.trendDot, { backgroundColor: getTrendColor(selectedScan.trend) }]} />
                     <Text style={[styles.trendText, { color: getTrendColor(selectedScan.trend) }]}>
-                      {selectedScan.trend.toUpperCase()}
+                      {(selectedScan.trend || 'neutral').toUpperCase()}
                     </Text>
                   </View>
                 </View>
