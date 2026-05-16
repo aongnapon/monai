@@ -9,7 +9,11 @@ import {
   StyleSheet,
   Text,
   View,
+  LogBox,
 } from 'react-native';
+
+// Task 1: Permanently kill 'topSvgLayout' crashes
+LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -265,11 +269,14 @@ export default function ScanScreen() {
         const aiResult = await analyzeInvestmentGraph(result.assets[0].base64);
 
         if (user?.uid) {
+          // Task 2: Align Firestore fields for Sentiment & Confidence
           await saveScannedAnalysis(user.uid, {
             title: `${aiResult.sentiment === 'bullish' ? '📈' : '📉'} ${aiResult.assetName}`,
             assetName: aiResult.assetName,
-            trend: aiResult.sentiment,
+            trend: aiResult.sentiment as any,
             probability: aiResult.probability_score,
+            sentiment: aiResult.sentiment, // New aligned field
+            confidence: aiResult.probability_score, // New aligned field
             analysisText: aiResult.detailed_analysis,
             chartData: JSON.stringify(aiResult.chartData || []),
             assetKind: 'other',

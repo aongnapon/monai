@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getFirestore,
@@ -29,6 +30,8 @@ export type ScannedAnalysisInput = {
   imageBase64?: string;
   trend: Trend;
   probability: number;
+  sentiment?: string; // Standardized key
+  confidence?: number; // Standardized key
   chartData: string; // Stringified array of ChartPoint
   assetName: string;
   resistance_levels?: string[];
@@ -102,6 +105,11 @@ export async function saveScannedAnalysis(uid: string, analysis: ScannedAnalysis
   return documentRef.id;
 }
 
+export async function deleteScannedAnalysis(uid: string, analysisId: string) {
+  const docRef = doc(database, USERS_COLLECTION, uid, ANALYSES_COLLECTION, analysisId);
+  await deleteDoc(docRef);
+}
+
 export function subscribeToScannedAnalyses(
   uid: string,
   onResults: (results: ScannedAnalysisRecord[]) => void,
@@ -114,6 +122,10 @@ export function subscribeToScannedAnalyses(
         createdAt?: Timestamp;
       };
 
+      // Ensure backward compatibility while aligning with new fields
+      const trend = data.sentiment || data.trend || 'neutral';
+      const probability = data.confidence !== undefined ? data.confidence : (data.probability || 0);
+
       return {
         id: analysisDoc.id,
         title: data.title,
@@ -121,7 +133,10 @@ export function subscribeToScannedAnalyses(
         assetKind: data.assetKind,
         analysisText: data.analysisText,
         imageBase64: data.imageBase64,
-        trend: data.trend || 'neutral',
+        trend: trend as Trend,
+        probability: probability,
+        sentiment: trend,
+        confidence: probability,
         chartData: data.chartData,
         assetName: data.assetName,
         resistance_levels: data.resistance_levels,

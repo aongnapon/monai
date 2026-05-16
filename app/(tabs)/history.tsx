@@ -8,7 +8,13 @@ import {
   Text,
   View,
   Image,
+  LogBox,
+  Alert,
 } from 'react-native';
+
+// Task 1: Permanently kill 'topSvgLayout' crashes
+LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
+
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,10 +29,15 @@ import {
   ShieldCheck,
   ChevronLeft,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react-native';
 
 import { useAuth } from '@/src/context/AuthContext';
-import { ScannedAnalysisRecord, subscribeToScannedAnalyses } from '@/src/services/storage';
+import { 
+  ScannedAnalysisRecord, 
+  subscribeToScannedAnalyses, 
+  deleteScannedAnalysis 
+} from '@/src/services/storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -76,9 +87,21 @@ const ScenarioItem = ({
   </View>
 );
 
-const HistoryCard = ({ item, onPress }: { item: ScannedAnalysisRecord; onPress: () => void }) => {
-  const isBullish = item.trend === 'bullish';
-  const isBearish = item.trend === 'bearish';
+const HistoryCard = ({ 
+  item, 
+  onPress, 
+  onDelete 
+}: { 
+  item: ScannedAnalysisRecord; 
+  onPress: () => void;
+  onDelete: () => void;
+}) => {
+  // Task 2: Align Firestore fields for Sentiment & Confidence
+  const sentiment = item.sentiment || item.trend || 'neutral';
+  const confidence = item.confidence !== undefined ? item.confidence : (item.probability || 0);
+
+  const isBullish = sentiment === 'bullish';
+  const isBearish = sentiment === 'bearish';
   
   const config = isBullish 
     ? { emoji: '🐂', color: '#34C759', label: 'BULLISH' }
@@ -108,10 +131,23 @@ const HistoryCard = ({ item, onPress }: { item: ScannedAnalysisRecord; onPress: 
             </View>
           </View>
 
-          <View style={[styles.confidenceBadge, { backgroundColor: config.color + '15' }]}>
-            <Text style={[styles.confidenceText, { color: config.color }]}>
-              {item.probability}%
-            </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            {/* Task 3: Add Firestore Delete Feature */}
+            <Pressable 
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.6 }]}
+            >
+              <Trash2 size={16} color="#9CA3AF" />
+            </Pressable>
+            
+            <View style={[styles.confidenceBadge, { backgroundColor: config.color + '15', marginTop: 8 }]}>
+              <Text style={[styles.confidenceText, { color: config.color }]}>
+                {confidence}%
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -144,6 +180,31 @@ export default function HistoryScreen() {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  const handleDelete = (item: ScannedAnalysisRecord) => {
+    Alert.alert(
+      'Delete Analysis',
+      'Are you sure you want to remove this intelligence report? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            if (user?.uid) {
+              try {
+                // Task 3: Implement Delete feature
+                await deleteScannedAnalysis(user.uid, item.id);
+                // State updates automatically via subscription
+              } catch (error) {
+                Alert.alert('Error', 'Failed to delete report.');
+              }
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const getTrendColor = (trend: string) => {
     if (trend === 'bullish') return '#34C759';
     if (trend === 'bearish') return '#FF3B30';
@@ -170,7 +231,11 @@ export default function HistoryScreen() {
           <FlashList
             data={history}
             renderItem={({ item }) => (
-              <HistoryCard item={item} onPress={() => setSelectedScan(item)} />
+              <HistoryCard 
+                item={item} 
+                onPress={() => setSelectedScan(item)} 
+                onDelete={() => handleDelete(item)}
+              />
             )}
             estimatedItemSize={140}
             contentContainerStyle={styles.listContent}
@@ -348,6 +413,9 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '600',
     marginLeft: 4,
+  },
+  deleteBtn: {
+    padding: 4,
   },
   confidenceBadge: {
     paddingHorizontal: 10,
