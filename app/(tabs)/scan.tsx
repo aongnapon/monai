@@ -12,21 +12,20 @@ import {
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  ArrowDownRight,
-  ArrowUpRight,
-  ChevronLeft,
-  Sparkles,
-  History,
-  Zap,
-  TrendingUp,
+  ArrowRight,
   BarChart3,
+  CheckCircle2,
+  ChevronLeft,
+  History,
+  Sparkles,
   Star,
   Target,
-  ArrowRight,
+  TrendingUp,
+  Zap
 } from 'lucide-react-native';
 
 import { useSubscription } from '@/services/revenuecat';
@@ -44,8 +43,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  * ARCHITECT NOTE: Premium Card System
  * institutional-grade UI inspired by Bloomberg and TradingView.
  */
-const ReportCard = ({ children, title, icon: Icon, color }: { children: React.ReactNode; title?: string; icon?: any; color?: string }) => (
-  <View style={styles.reportCard}>
+const ReportCard = ({ children, title, icon: Icon, color, style }: { children: React.ReactNode; title?: string; icon?: any; color?: string; style?: any }) => (
+  <View style={[styles.reportCard, style]}>
     {title && (
       <View style={styles.cardHeaderRow}>
         <View style={styles.cardTitleGroup}>
@@ -78,16 +77,47 @@ const MiniAreaChart = ({ color, levels = [0.2, 0.5, 0.4, 0.8, 0.7, 0.9] }: { col
   </View>
 );
 
+const ScenarioItem = ({ 
+  label, 
+  emoji, 
+  color, 
+  isActive 
+}: { 
+  label: string; 
+  emoji: string; 
+  color: string; 
+  isActive: boolean 
+}) => (
+  <View style={[
+    styles.scenarioItem, 
+    { borderColor: isActive ? color : '#E2E8F0', backgroundColor: isActive ? color + '08' : '#FFF' }
+  ]}>
+    <View style={styles.scenarioHeader}>
+      <Text style={styles.scenarioEmoji}>{emoji}</Text>
+      {isActive && <CheckCircle2 size={14} color={color} />}
+    </View>
+    <Text style={[styles.scenarioLabel, { color: isActive ? color : '#64748B' }]}>{label}</Text>
+    <View style={styles.scenarioIndicatorRow}>
+      {[1, 2, 3].map((v) => (
+        <View key={v} style={[styles.scenarioIndicator, { backgroundColor: isActive ? color : '#CBD5E1', opacity: 0.3 * v }]} />
+      ))}
+    </View>
+  </View>
+);
+
 const AnalysisReport = ({
   analysis,
+  scanImage,
   onClose,
 }: {
   analysis: InvestmentAnalysis;
+  scanImage: string | null;
   onClose: () => void;
 }) => {
   const isBullish = analysis.sentiment === 'bullish';
   const isBearish = analysis.sentiment === 'bearish';
-  const themeColor = isBullish ? '#34C759' : isBearish ? '#FF3B30' : '#8E8E93';
+  const isNeutral = analysis.sentiment === 'neutral';
+  const themeColor = isBullish ? '#34C759' : isBearish ? '#FF3B30' : '#F59E0B';
   
   const probLevel = analysis.probability_score > 70 ? 'High' : analysis.probability_score > 40 ? 'Medium' : 'Low';
 
@@ -103,28 +133,48 @@ const AnalysisReport = ({
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.reportScrollContent}>
+          
+          {/* IMAGE PREVIEW REFERENCE */}
+          {scanImage && (
+            <View style={styles.imageRefContainer}>
+              <Image source={{ uri: `data:image/jpeg;base64,${scanImage}` }} style={styles.imageRef} resizeMode="cover" />
+              <View style={styles.imageRefOverlay}>
+                <View style={styles.imageRefBadge}>
+                  <Text style={styles.imageRefBadgeText}>ORIGINAL SCAN</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           <Text style={styles.reportAssetName}>{analysis.assetName}</Text>
           
+          {/* SCENARIO GRID */}
+          <View style={styles.scenarioGrid}>
+            <ScenarioItem label="Bullish" emoji="🐂" color="#34C759" isActive={isBullish} />
+            <ScenarioItem label="Sideways" emoji="↔️" color="#F59E0B" isActive={isNeutral} />
+            <ScenarioItem label="Bearish" emoji="🐻" color="#FF3B30" isActive={isBearish} />
+          </View>
+
           <View style={styles.cardGrid}>
             {/* SENTIMENT CARD */}
-            <ReportCard title="Sentiment" icon={TrendingUp} color={themeColor}>
+            <ReportCard title="Sentiment" icon={TrendingUp} color={themeColor} style={{ width: '48%' }}>
               <View style={styles.sentimentContent}>
                 <View>
                   <Text style={[styles.sentimentValue, { color: themeColor }]}>
                     {analysis.sentiment.toUpperCase()}
                   </Text>
-                  <Text style={styles.sentimentEmoji}>{isBullish ? '📈' : isBearish ? '📉' : '🛡️'}</Text>
+                  <Text style={styles.sentimentEmoji}>{isBullish ? '📈' : isBearish ? '📉' : '📊'}</Text>
                 </View>
                 <MiniAreaChart color={themeColor} />
               </View>
             </ReportCard>
 
             {/* PROBABILITY CARD */}
-            <ReportCard title="Confidence" icon={Star} color="#F59E0B">
+            <ReportCard title="Confidence" icon={Star} color="#F59E0B" style={{ width: '48%' }}>
               <View style={styles.probContent}>
                 <Text style={styles.probPercent}>{analysis.probability_score}%</Text>
                 <View style={[styles.probBadge, { backgroundColor: '#F59E0B15' }]}>
-                  <Text style={styles.probBadgeText}>{probLevel} Confidence</Text>
+                  <Text style={styles.probBadgeText}>{probLevel}</Text>
                 </View>
               </View>
             </ReportCard>
@@ -135,14 +185,14 @@ const AnalysisReport = ({
             <View style={styles.srContent}>
               <View style={styles.srColumn}>
                 <Text style={styles.srLabel}>RESISTANCE</Text>
-                {analysis.resistance_levels.map((lvl, i) => (
+                {(analysis.resistance_levels || []).map((lvl, i) => (
                   <Text key={i} style={styles.srValue}>₩{lvl}</Text>
                 ))}
               </View>
               <View style={styles.srDivider} />
               <View style={styles.srColumn}>
                 <Text style={styles.srLabel}>SUPPORT</Text>
-                {analysis.support_levels.map((lvl, i) => (
+                {(analysis.support_levels || []).map((lvl, i) => (
                   <Text key={i} style={styles.srValue}>₩{lvl}</Text>
                 ))}
               </View>
@@ -177,6 +227,7 @@ export default function ScanScreen() {
   const { isPro, purchase } = useSubscription(user?.uid);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<InvestmentAnalysis | null>(null);
+  const [lastScanImage, setLastScanImage] = useState<string | null>(null);
 
   const safeHaptic = async (type: 'impact' | 'notification' = 'impact') => {
     try {
@@ -208,6 +259,7 @@ export default function ScanScreen() {
 
       if (!result.canceled && result.assets?.[0]?.base64) {
         setLoading(true);
+        setLastScanImage(result.assets[0].base64);
         await safeHaptic('impact');
 
         const aiResult = await analyzeInvestmentGraph(result.assets[0].base64);
@@ -240,7 +292,10 @@ export default function ScanScreen() {
   };
 
   if (analysis) {
-    return <AnalysisReport analysis={analysis} onClose={() => setAnalysis(null)} />;
+    return <AnalysisReport analysis={analysis} scanImage={lastScanImage} onClose={() => {
+      setAnalysis(null);
+      setLastScanImage(null);
+    }} />;
   }
 
   return (
@@ -449,12 +504,81 @@ const styles = StyleSheet.create({
   reportScrollContent: {
     padding: 20,
   },
+  imageRefContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFF',
+  },
+  imageRef: {
+    width: '100%',
+    height: '100%',
+  },
+  imageRefOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 12,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  imageRefBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  imageRefBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFF',
+    letterSpacing: 1,
+  },
   reportAssetName: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: '#0F172A',
-    marginBottom: 24,
+    marginBottom: 20,
     textAlign: 'center',
+  },
+  scenarioGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  scenarioItem: {
+    width: (SCREEN_WIDTH - 60) / 3,
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  scenarioHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 8,
+  },
+  scenarioEmoji: {
+    fontSize: 20,
+  },
+  scenarioLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  scenarioIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scenarioIndicator: {
+    width: 12,
+    height: 3,
+    borderRadius: 2,
+    marginHorizontal: 1,
   },
   cardGrid: {
     flexDirection: 'row',
@@ -467,7 +591,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    width: '100%',
     marginBottom: 16,
   },
   cardHeaderRow: {
@@ -492,11 +615,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sentimentValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '900',
   },
   sentimentEmoji: {
-    fontSize: 32,
+    fontSize: 24,
     marginTop: 4,
   },
   areaChartContainer: {
@@ -518,10 +641,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   probPercent: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '900',
     color: '#0F172A',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   probBadge: {
     paddingHorizontal: 8,
@@ -529,7 +652,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   probBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: '#F59E0B',
   },

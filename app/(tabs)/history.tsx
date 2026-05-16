@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
@@ -20,7 +21,8 @@ import {
   ArrowRight,
   Sparkles,
   ShieldCheck,
-  ChevronLeft
+  ChevronLeft,
+  CheckCircle2,
 } from 'lucide-react-native';
 
 import { useAuth } from '@/src/context/AuthContext';
@@ -43,6 +45,34 @@ const MiniPriceBar = ({ color, levels = [0.4, 0.7, 0.5, 0.9] }: { color: string;
         ]} 
       />
     ))}
+  </View>
+);
+
+const ScenarioItem = ({ 
+  label, 
+  emoji, 
+  color, 
+  isActive 
+}: { 
+  label: string; 
+  emoji: string; 
+  color: string; 
+  isActive: boolean 
+}) => (
+  <View style={[
+    styles.scenarioItem, 
+    { borderColor: isActive ? color : '#E2E8F0', backgroundColor: isActive ? color + '08' : '#FFF' }
+  ]}>
+    <View style={styles.scenarioHeader}>
+      <Text style={styles.scenarioEmoji}>{emoji}</Text>
+      {isActive && <CheckCircle2 size={14} color={color} />}
+    </View>
+    <Text style={[styles.scenarioLabel, { color: isActive ? color : '#64748B' }]}>{label}</Text>
+    <View style={styles.scenarioIndicatorRow}>
+      {[1, 2, 3].map((v) => (
+        <View key={v} style={[styles.scenarioIndicator, { backgroundColor: isActive ? color : '#CBD5E1', opacity: 0.3 * v }]} />
+      ))}
+    </View>
   </View>
 );
 
@@ -117,7 +147,7 @@ export default function HistoryScreen() {
   const getTrendColor = (trend: string) => {
     if (trend === 'bullish') return '#34C759';
     if (trend === 'bearish') return '#FF3B30';
-    return '#8E8E93';
+    return '#F59E0B';
   };
 
   return (
@@ -163,16 +193,33 @@ export default function HistoryScreen() {
               </View>
 
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+                
+                {/* IMAGE PREVIEW REFERENCE */}
+                {selectedScan.imageBase64 && (
+                  <View style={styles.imageRefContainer}>
+                    <Image source={{ uri: `data:image/jpeg;base64,${selectedScan.imageBase64}` }} style={styles.imageRef} resizeMode="cover" />
+                    <View style={styles.imageRefOverlay}>
+                      <View style={styles.imageRefBadge}>
+                        <Text style={styles.imageRefBadgeText}>SAVED SCAN</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 <View style={styles.detailHero}>
-                  <Text style={styles.detailEmoji}>
-                    {selectedScan.trend === 'bullish' ? '🐂' : selectedScan.trend === 'bearish' ? '🐻' : '🛡️'}
-                  </Text>
                   <Text style={styles.detailAsset}>{selectedScan.assetName}</Text>
                   <View style={[styles.detailBadge, { backgroundColor: getTrendColor(selectedScan.trend) + '15' }]}>
                     <Text style={[styles.detailBadgeText, { color: getTrendColor(selectedScan.trend) }]}>
                       {selectedScan.trend?.toUpperCase()} • {selectedScan.probability}% CONFIDENCE
                     </Text>
                   </View>
+                </View>
+
+                {/* SCENARIO GRID */}
+                <View style={styles.scenarioGrid}>
+                  <ScenarioItem label="Bullish" emoji="🐂" color="#34C759" isActive={selectedScan.trend === 'bullish'} />
+                  <ScenarioItem label="Sideways" emoji="↔️" color="#F59E0B" isActive={selectedScan.trend === 'neutral'} />
+                  <ScenarioItem label="Bearish" emoji="🐻" color="#FF3B30" isActive={selectedScan.trend === 'bearish'} />
                 </View>
 
                 <View style={styles.detailSection}>
@@ -415,19 +462,48 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
+  imageRefContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFF',
+  },
+  imageRef: {
+    width: '100%',
+    height: '100%',
+  },
+  imageRefOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 12,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  imageRefBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  imageRefBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFF',
+    letterSpacing: 1,
+  },
   detailHero: {
     alignItems: 'center',
-    paddingVertical: 30,
-  },
-  detailEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    paddingBottom: 24,
   },
   detailAsset: {
     fontSize: 28,
     fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
+    textAlign: 'center',
   },
   detailBadge: {
     paddingHorizontal: 14,
@@ -438,6 +514,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  scenarioGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  scenarioItem: {
+    width: (SCREEN_WIDTH - 60) / 3,
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  scenarioHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 8,
+  },
+  scenarioEmoji: {
+    fontSize: 20,
+  },
+  scenarioLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  scenarioIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scenarioIndicator: {
+    width: 12,
+    height: 3,
+    borderRadius: 2,
+    marginHorizontal: 1,
   },
   detailSection: {
     marginTop: 10,
