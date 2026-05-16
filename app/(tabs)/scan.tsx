@@ -1,489 +1,606 @@
-import { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Clock } from 'lucide-react-native';
-import { LineChart } from 'react-native-wagmi-charts';
-import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronLeft,
+  Sparkles,
+  History,
+  Zap,
+  TrendingUp,
+  BarChart3,
+  Star,
+  Target,
+  ArrowRight,
+} from 'lucide-react-native';
 
 import { useSubscription } from '@/services/revenuecat';
 import { useAuth } from '@/src/context/AuthContext';
-import { analyzeInvestmentGraph } from '@/src/lib/gemini';
-import { getDailyScanCount, incrementDailyScanCount, saveScannedAnalysis, Trend } from '../../src/services/storage';
+import {
+  analyzeInvestmentGraph,
+  InvestmentAnalysis,
+} from '@/src/lib/gemini';
+
+import { saveScannedAnalysis } from '@/src/services/storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function inferAssetKind(text: string): 'stock' | 'crypto' | 'commodity' | 'other' {
-  const lowerCase = text.toLowerCase();
-  if (lowerCase.includes('crypto') || lowerCase.includes('bitcoin') || lowerCase.includes('eth')) {
-    return 'crypto';
-  }
-  if (lowerCase.includes('gold') || lowerCase.includes('oil') || lowerCase.includes('commodity')) {
-    return 'commodity';
-  }
-  if (lowerCase.includes('stock') || lowerCase.includes('equity') || lowerCase.includes('share')) {
-    return 'stock';
-  }
-  return 'other';
-}
+/**
+ * ARCHITECT NOTE: Premium Card System
+ * institutional-grade UI inspired by Bloomberg and TradingView.
+ */
+const ReportCard = ({ children, title, icon: Icon, color }: { children: React.ReactNode; title?: string; icon?: any; color?: string }) => (
+  <View style={styles.reportCard}>
+    {title && (
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.cardTitleGroup}>
+          {Icon && <Icon size={16} color={color || '#6B7280'} style={{ marginRight: 8 }} />}
+          <Text style={styles.cardHeaderTitle}>{title}</Text>
+        </View>
+      </View>
+    )}
+    {children}
+  </View>
+);
+
+const MiniAreaChart = ({ color, levels = [0.2, 0.5, 0.4, 0.8, 0.7, 0.9] }: { color: string; levels?: number[] }) => (
+  <View style={styles.areaChartContainer}>
+    <View style={styles.barRow}>
+      {levels.map((level, i) => (
+        <View 
+          key={i} 
+          style={[
+            styles.areaBar, 
+            { 
+              height: 30 * level + 10, 
+              backgroundColor: color, 
+              opacity: 0.1 + (i * 0.15) 
+            }
+          ]} 
+        />
+      ))}
+    </View>
+  </View>
+);
+
+const AnalysisReport = ({
+  analysis,
+  onClose,
+}: {
+  analysis: InvestmentAnalysis;
+  onClose: () => void;
+}) => {
+  const isBullish = analysis.sentiment === 'bullish';
+  const isBearish = analysis.sentiment === 'bearish';
+  const themeColor = isBullish ? '#34C759' : isBearish ? '#FF3B30' : '#8E8E93';
+  
+  const probLevel = analysis.probability_score > 70 ? 'High' : analysis.probability_score > 40 ? 'Medium' : 'Low';
+
+  return (
+    <View style={styles.reportOverlay}>
+      <SafeAreaView style={styles.reportContainer} edges={['top']}>
+        <View style={styles.reportHeader}>
+          <Pressable onPress={onClose} style={styles.backButton}>
+            <ChevronLeft color="#111827" size={24} />
+          </Pressable>
+          <Text style={styles.reportHeaderTitle}>Report Insights</Text>
+          <View style={{ width: 44 }} />
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.reportScrollContent}>
+          <Text style={styles.reportAssetName}>{analysis.assetName}</Text>
+          
+          <View style={styles.cardGrid}>
+            {/* SENTIMENT CARD */}
+            <ReportCard title="Sentiment" icon={TrendingUp} color={themeColor}>
+              <View style={styles.sentimentContent}>
+                <View>
+                  <Text style={[styles.sentimentValue, { color: themeColor }]}>
+                    {analysis.sentiment.toUpperCase()}
+                  </Text>
+                  <Text style={styles.sentimentEmoji}>{isBullish ? '📈' : isBearish ? '📉' : '🛡️'}</Text>
+                </View>
+                <MiniAreaChart color={themeColor} />
+              </View>
+            </ReportCard>
+
+            {/* PROBABILITY CARD */}
+            <ReportCard title="Confidence" icon={Star} color="#F59E0B">
+              <View style={styles.probContent}>
+                <Text style={styles.probPercent}>{analysis.probability_score}%</Text>
+                <View style={[styles.probBadge, { backgroundColor: '#F59E0B15' }]}>
+                  <Text style={styles.probBadgeText}>{probLevel} Confidence</Text>
+                </View>
+              </View>
+            </ReportCard>
+          </View>
+
+          {/* S&R CARD */}
+          <ReportCard title="Levels & Structure" icon={BarChart3} color="#6366F1">
+            <View style={styles.srContent}>
+              <View style={styles.srColumn}>
+                <Text style={styles.srLabel}>RESISTANCE</Text>
+                {analysis.resistance_levels.map((lvl, i) => (
+                  <Text key={i} style={styles.srValue}>₩{lvl}</Text>
+                ))}
+              </View>
+              <View style={styles.srDivider} />
+              <View style={styles.srColumn}>
+                <Text style={styles.srLabel}>SUPPORT</Text>
+                {analysis.support_levels.map((lvl, i) => (
+                  <Text key={i} style={styles.srValue}>₩{lvl}</Text>
+                ))}
+              </View>
+            </View>
+            <View style={styles.targetRow}>
+              <Target size={16} color="#6366F1" />
+              <Text style={styles.targetLabel}>KEY TARGET: </Text>
+              <Text style={styles.targetValue}>₩{analysis.key_price_target}</Text>
+            </View>
+          </ReportCard>
+
+          {/* SUMMARY CARD */}
+          <ReportCard title="Market Summary" icon={Sparkles} color="#7C3AED">
+            <View style={styles.summaryContent}>
+              <Text style={styles.summaryText}>{analysis.detailed_analysis}</Text>
+            </View>
+          </ReportCard>
+
+          <Pressable onPress={onClose} style={styles.doneButton}>
+            <Text style={styles.doneButtonText}>Finish Analysis</Text>
+            <ArrowRight size={20} color="#FFF" style={{ marginLeft: 8 }} />
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+};
 
 export default function ScanScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { isPro, isLoading: subscriptionLoading, purchase, refresh } = useSubscription(user?.uid);
+  const { isPro, purchase } = useSubscription(user?.uid);
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<InvestmentAnalysis | null>(null);
 
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [resultText, setResultText] = useState('');
-  const [trend, setTrend] = useState<Trend>('neutral');
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [assetName, setAssetName] = useState('');
-  const [todayCount, setTodayCount] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showResultSheet, setShowResultSheet] = useState(false);
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setTodayCount(0);
-      return;
-    }
-
-    getDailyScanCount(user.uid)
-      .then(setTodayCount)
-      .catch(() => setTodayCount(0));
-  }, [user?.uid]);
-
-  const handleUpgrade = async () => {
+  const safeHaptic = async (type: 'impact' | 'notification' = 'impact') => {
     try {
-      const unlocked = await purchase();
-      if (unlocked) {
-        setShowPaywall(false);
-        await refresh();
+      const Haptics = require('expo-haptics');
+      if (type === 'impact') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not complete purchase.';
-      Alert.alert('Upgrade to Pro', message);
-    }
+    } catch (e) {}
   };
 
-  const handlePickAndAnalyze = async () => {
-    if (!user) {
-      router.push('/auth/login');
-      return;
-    }
-
+  const handleScan = async () => {
     if (!isPro) {
-      setShowPaywall(true);
+      Alert.alert('Pro Insight Required', 'Visual chart intelligence is a premium feature.', [
+        { text: 'Later', style: 'cancel' },
+        { text: 'Upgrade', onPress: purchase },
+      ]);
       return;
     }
 
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Permission required', 'Enable photo library access to scan financial charts.');
-        return;
-      }
-
-      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.85,
+        quality: 0.8,
         base64: true,
       });
 
-      if (pickerResult.canceled) {
-        return;
+      if (!result.canceled && result.assets?.[0]?.base64) {
+        setLoading(true);
+        await safeHaptic('impact');
+
+        const aiResult = await analyzeInvestmentGraph(result.assets[0].base64);
+
+        if (user?.uid) {
+          await saveScannedAnalysis(user.uid, {
+            title: `${aiResult.sentiment === 'bullish' ? '📈' : '📉'} ${aiResult.assetName}`,
+            assetName: aiResult.assetName,
+            trend: aiResult.sentiment,
+            probability: aiResult.probability_score,
+            analysisText: aiResult.detailed_analysis,
+            chartData: JSON.stringify(aiResult.chartData || []),
+            assetKind: 'other',
+            imageBase64: result.assets[0].base64,
+            resistance_levels: aiResult.resistance_levels,
+            support_levels: aiResult.support_levels,
+            key_price_target: aiResult.key_price_target,
+          });
+        }
+
+        setAnalysis(aiResult);
+        await safeHaptic('notification');
       }
-
-      const selectedAsset = pickerResult.assets[0];
-      if (!selectedAsset?.base64) {
-        Alert.alert('Invalid image', 'Please select another image.');
-        return;
-      }
-
-      setImageUri(selectedAsset.uri);
-      setIsProcessing(true);
-
-      const analysisResult = await analyzeInvestmentGraph(selectedAsset.base64, selectedAsset.mimeType ?? 'image/jpeg');
-
-      await saveScannedAnalysis(user.uid, {
-        title: 'Financial Graph Analysis',
-        assetKind: inferAssetKind(analysisResult.analysisText),
-        analysisText: analysisResult.analysisText,
-        imageBase64: selectedAsset.base64,
-        trend: analysisResult.trend,
-        chartData: JSON.stringify(analysisResult.chartData),
-        assetName: analysisResult.assetName,
-      });
-
-      await incrementDailyScanCount(user.uid);
-      setTodayCount((count) => count + 1);
-
-      setResultText(analysisResult.analysisText);
-      setTrend(analysisResult.trend);
-      setChartData(analysisResult.chartData);
-      setAssetName(analysisResult.assetName);
-      setShowResultSheet(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Image analysis failed.';
-      Alert.alert('Scan error', message);
+      console.error('Analysis error:', error);
+      Alert.alert('Engine Error', 'The analysis engine failed to process the image.');
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
   };
 
-  const getTrendColor = () => {
-    if (trend === 'bullish') return '#34C759';
-    if (trend === 'bearish') return '#FF3B30';
-    return '#8E8E93';
-  };
+  if (analysis) {
+    return <AnalysisReport analysis={analysis} onClose={() => setAnalysis(null)} />;
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Scan</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerLabel}>MONAI ARCHITECT</Text>
+            <Text style={styles.headerTitle}>Chart Insight</Text>
+          </View>
+
           <View style={styles.headerActions}>
-            <Pressable 
-              onPress={() => router.push('/(tabs)/history')} 
-              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            >
-              <Clock size={24} color="#000000" strokeWidth={1.5} />
+            <Pressable onPress={() => router.push('/history')} style={styles.historyBtn}>
+              <History size={22} color="#111827" />
             </Pressable>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{subscriptionLoading ? 'Checking' : isPro ? 'PRO' : 'FREE'}</Text>
+
+            <View style={[styles.statusBadge, { backgroundColor: isPro ? '#F0F9FF' : '#F9FAFB' }]}>
+              <View style={[styles.statusDot, { backgroundColor: isPro ? '#0EA5E9' : '#9CA3AF' }]} />
+              <Text style={[styles.statusText, { color: isPro ? '#0369A1' : '#4B5563' }]}>
+                {isPro ? 'Pro' : 'Free'}
+              </Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.metaText}>Today&apos;s scans: {todayCount}</Text>
-
-        <Pressable style={({ pressed }) => [styles.previewCard, pressed && styles.pressed]} onPress={handlePickAndAnalyze}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.previewImage} />
-          ) : (
-            <View style={styles.placeholder}>
-              <Text style={styles.placeholderTitle}>Select graph image</Text>
-              <Text style={styles.placeholderSub}>Import a chart from your photo library</Text>
+        <View style={styles.heroBox}>
+          <View style={styles.heroIconAura}>
+            <View style={styles.heroGlow} />
+            <View style={styles.heroMainIcon}>
+              <BarChart3 size={48} color="#0EA5E9" strokeWidth={1.5} />
             </View>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={handlePickAndAnalyze}
-          style={({ pressed }) => [styles.analyzeButton, pressed && styles.pressed]}
-          disabled={isProcessing}>
-          {isProcessing ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.analyzeButtonText}>Analyze with Gemini</Text>
-          )}
-        </Pressable>
-      </View>
-
-      <Modal visible={showPaywall} transparent animationType="fade" onRequestClose={() => setShowPaywall(false)}>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.paywallCard}>
-            <Text style={styles.paywallTitle}>Monai Pro</Text>
-            <Text style={styles.paywallCopy}>
-              Upgrade to Pro to unlock AI chart scans, deeper analysis, and premium fintech insights.
-            </Text>
-            <Pressable style={({ pressed }) => [styles.upgradeButton, pressed && styles.pressed]} onPress={handleUpgrade}>
-              <Text style={styles.upgradeButtonText}>Upgrade</Text>
-            </Pressable>
-            <Pressable style={({ pressed }) => [styles.dismissButton, pressed && styles.pressed]} onPress={() => setShowPaywall(false)}>
-              <Text style={styles.dismissButtonText}>Not now</Text>
-            </Pressable>
           </View>
-        </View>
-      </Modal>
 
-      <Modal visible={showResultSheet} transparent animationType="slide" onRequestClose={() => setShowResultSheet(false)}>
-        <View style={styles.sheetBackdrop}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.sheetContainer}>
-            <View style={styles.sheetHandle} />
-            
-            <View style={styles.sheetHeader}>
-              <View>
-                <Text style={styles.assetName}>{assetName || 'Analysis Result'}</Text>
-                <View style={[styles.trendBadge, { backgroundColor: getTrendColor() + '20' }]}>
-                  <View style={[styles.trendDot, { backgroundColor: getTrendColor() }]} />
-                  <Text style={[styles.trendText, { color: getTrendColor() }]}>{trend.toUpperCase()}</Text>
-                </View>
-              </View>
-              <Pressable style={styles.sheetCloseIcon} onPress={() => setShowResultSheet(false)}>
-                <Text style={styles.closeIconText}>✕</Text>
-              </Pressable>
+          <Text style={styles.heroHeadline}>Institutional Analysis</Text>
+          <Text style={styles.heroSubline}>Our AI engine identifies institutional technical patterns and price levels.</Text>
+
+          <Pressable onPress={handleScan} disabled={loading} style={styles.mainActionBtn}>
+            <View style={styles.btnContent}>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Text style={styles.btnText}>Start Intelligence Scan</Text>
+                  <Zap size={18} color="#FFF" fill="#FFF" style={{ marginLeft: 8 }} />
+                </>
+              )}
             </View>
-
-            {chartData.length > 0 && (
-              <View style={styles.chartContainer}>
-                <LineChart.Provider data={chartData}>
-                  <LineChart width={SCREEN_WIDTH - 36} height={120}>
-                    <LineChart.Path color={getTrendColor()} width={2}>
-                      <LineChart.Gradient color={getTrendColor()} opacity={0.2} />
-                    </LineChart.Path>
-                    <LineChart.CursorCrosshair 
-                      onActivated={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-                      onEnded={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-                    />
-                  </LineChart>
-                </LineChart.Provider>
-              </View>
-            )}
-
-            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
-              <Text style={styles.sheetBody}>{resultText}</Text>
-            </ScrollView>
-
-            <Pressable style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]} onPress={() => setShowResultSheet(false)}>
-              <Text style={styles.closeButtonText}>Done</Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </View>
-      </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    backgroundColor: '#F8FAFC',
   },
-  headerRow: {
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 20,
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#000000',
+  headerLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#94A3B8',
+    letterSpacing: 2,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  iconButton: {
-    marginRight: 16,
-    padding: 4,
-  },
-  badge: {
-    borderRadius: 999,
+  historyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: '#D1D1D6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
   },
-  badgeText: {
-    color: '#000000',
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  statusText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  metaText: {
-    color: '#6E6E73',
-    marginBottom: 16,
-    fontSize: 13,
-  },
-  previewCard: {
-    flex: 1,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
-    backgroundColor: '#FAFAFA',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  placeholder: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  placeholderTitle: {
-    color: '#000000',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  placeholderSub: {
-    color: '#6E6E73',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  analyzeButton: {
-    marginTop: 16,
-    backgroundColor: '#000000',
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  analyzeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  paywallCard: {
-    width: '100%',
-    borderRadius: 24,
+  heroBox: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
-    padding: 20,
-  },
-  paywallTitle: {
-    color: '#000000',
-    fontSize: 26,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  paywallCopy: {
-    color: '#3A3A3C',
-    lineHeight: 22,
-    marginBottom: 18,
-  },
-  upgradeButton: {
-    backgroundColor: '#000000',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: 32,
+    padding: 32,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 24,
+  },
+  heroIconAura: {
+    width: 140,
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  heroGlow: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#0EA5E9',
+    opacity: 0.1,
+  },
+  heroMainIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  heroHeadline: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 10,
   },
-  upgradeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+  heroSubline: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
   },
-  dismissButton: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
-    paddingVertical: 12,
+  mainActionBtn: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+  },
+  btnContent: {
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  dismissButtonText: {
-    color: '#000000',
-    fontWeight: '600',
+  btnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  sheetBackdrop: {
+  reportOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#F8FAFC',
+    zIndex: 1000,
+  },
+  reportContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
   },
-  sheetContainer: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18,
-    paddingBottom: 24,
-    paddingTop: 10,
-    minHeight: '60%',
-    maxHeight: '90%',
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: '#E5E5EA',
-    marginBottom: 20,
-  },
-  sheetHeader: {
+  reportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  assetName: {
-    color: '#000000',
-    fontSize: 24,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  reportHeaderTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    color: '#0F172A',
   },
-  trendBadge: {
+  reportScrollContent: {
+    padding: 20,
+  },
+  reportAssetName: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  cardGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  reportCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    width: '100%',
+    marginBottom: 16,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  cardTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  sentimentContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sentimentValue: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  sentimentEmoji: {
+    fontSize: 32,
+    marginTop: 4,
+  },
+  areaChartContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 40,
+  },
+  areaBar: {
+    width: 6,
+    borderRadius: 3,
+    marginHorizontal: 2,
+  },
+  probContent: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  probPercent: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  probBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
-  trendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+  probBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F59E0B',
   },
-  trendText: {
+  srContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  srColumn: {
+    flex: 1,
+  },
+  srDivider: {
+    width: 1,
+    backgroundColor: '#F1F5F9',
+    marginHorizontal: 20,
+  },
+  srLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#94A3B8',
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  srValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  targetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+  },
+  targetLabel: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#64748B',
+    marginLeft: 8,
   },
-  sheetCloseIcon: {
-    padding: 8,
+  targetValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#6366F1',
   },
-  closeIconText: {
-    fontSize: 20,
-    color: '#8E8E93',
-  },
-  chartContainer: {
-    height: 140,
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetScroll: {
-    flex: 1,
-    marginBottom: 16,
-  },
-  sheetBody: {
-    color: '#1C1C1E',
-    lineHeight: 24,
-    fontSize: 16,
-  },
-  closeButton: {
-    backgroundColor: '#000000',
+  summaryContent: {
+    backgroundColor: '#F8FAFC',
+    padding: 16,
     borderRadius: 16,
-    paddingVertical: 16,
+  },
+  summaryText: {
+    fontSize: 15,
+    color: '#334155',
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  doneButton: {
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 40,
   },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  pressed: {
-    opacity: 0.7,
+  doneButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

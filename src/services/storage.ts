@@ -28,8 +28,12 @@ export type ScannedAnalysisInput = {
   analysisText: string;
   imageBase64?: string;
   trend: Trend;
+  probability: number;
   chartData: string; // Stringified array of ChartPoint
   assetName: string;
+  resistance_levels?: string[];
+  support_levels?: string[];
+  key_price_target?: string;
 };
 
 export type ScannedAnalysisRecord = ScannedAnalysisInput & {
@@ -120,6 +124,9 @@ export function subscribeToScannedAnalyses(
         trend: data.trend || 'neutral',
         chartData: data.chartData,
         assetName: data.assetName,
+        resistance_levels: data.resistance_levels,
+        support_levels: data.support_levels,
+        key_price_target: data.key_price_target,
         createdAt: toIsoString(data.createdAt),
       };
     });
