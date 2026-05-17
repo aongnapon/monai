@@ -1,82 +1,99 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LogBox } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+// Task 1: Stability Guard
+LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
-
+/**
+ * ARCHITECT NOTE: Institutional Tab Navigation
+ * We use a minimalist design with high-contrast active states.
+ * Reordered to follow the core user loop: Scan -> History -> Learn -> Portfolio -> Profile.
+ */
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: '#0F172A', // Institutional Dark Blue
+        tabBarInactiveTintColor: '#94A3B8', // Soft Slate
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E5EA',
-          height: 74,
-          paddingBottom: 10,
-          paddingTop: 10,
+          borderTopColor: '#F1F5F9',
+          height: 84,
+          paddingBottom: 24,
+          paddingTop: 12,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
+          fontSize: 10,
           fontWeight: '700',
+          marginTop: -4,
         },
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false, // Unified header management in individual screens
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Learn',
-          tabBarIcon: ({ color }) => <TabBarIcon name="line-chart" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
-      />
+      
+      {/* 1. SCANNER: The primary utility */}
       <Tabs.Screen
         name="scan"
         options={{
           title: 'Scanner',
-          tabBarIcon: ({ color }) => <TabBarIcon name="camera" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'scan' : 'scan-outline'} size={24} color={color} />
+          ),
         }}
       />
+
+      {/* 2. HISTORY: Intelligence logs */}
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+
+      {/* 3. LEARN: Intelligence Academy */}
+      <Tabs.Screen
+        name="learn"
+        options={{
+          title: 'Academy',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'school' : 'school-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+
+      {/* 4. PORTFOLIO: Institutional Wealth Suite */}
+      <Tabs.Screen
+        name="portfolio"
+        options={{
+          title: 'Portfolio',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+
+      {/* 5. PROFILE: User Settings */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user-circle-o" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+          ),
         }}
       />
+
+      {/* HIDDEN: Legacy index/learn redirect */}
       <Tabs.Screen
-        name="history"
+        name="index"
         options={{
-          href: null, // Hide from tab bar
-          headerShown: false,
+          href: null, // Removed from active navigation
         }}
       />
     </Tabs>
