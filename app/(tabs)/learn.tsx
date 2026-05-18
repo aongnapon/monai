@@ -20,10 +20,10 @@ LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// PERFECTED SCALING CONSTANTS
-const NODE_SIZE = 110; 
-const MASCOT_SIZE = 180; 
-const ROW_HEIGHT = 160;
+// REFINED SCALING FOR MAXIMUM BREATHING ROOM
+const NODE_SIZE = 92; 
+const MASCOT_SIZE = 135; 
+const ROW_HEIGHT = 150;
 
 export default function LearnScreen() {
   const [completedCourseIds, setCompletedCourseIds] = useState<string[]>(['1']);
@@ -96,58 +96,80 @@ export default function LearnScreen() {
     const isFinal = 'isFinal' in course;
     const isPressed = pressedNodeId === course.course_id;
 
-    // Zigzag alignment logic
-    const isLeftAligned = index % 2 === 0;
-    const translateX = isLeftAligned ? -45 : 45;
+    // Horizontal Zigzag Logic
+    const isLeftTrack = index % 2 === 0;
+    
+    // Boundary collision fix for first chapter
+    const renderLabelBelow = index === 0;
 
     return (
       <View key={course.course_id} style={styles.nodeRow}>
-        {!isFinal && (
-          <View style={styles.milestoneContainer}>
-            <Text style={styles.milestoneLabel}>DAY</Text>
-            <Text style={styles.milestoneValue}>{index + 1}</Text>
-          </View>
-        )}
-
-        <View style={[styles.nodeWrapper, { transform: [{ translateX }] }]}>
-          {/* FLOATING LABEL: Positioned to avoid blocking mascot or node */}
-          {isPressed && (
-            <View style={styles.floatingLabel}>
-              <Text style={styles.floatingLabelText}>{course.title}</Text>
-              <View style={styles.labelArrow} />
+        {/* ZONE 1: LEFT SIDE (Milestone or Mascot) */}
+        <View style={styles.sideZone}>
+          {!isFinal && isLeftTrack && (
+            <View style={styles.milestoneBox}>
+              <Text style={styles.milestoneLabel}>DAY</Text>
+              <Text style={styles.milestoneValue}>{index + 1}</Text>
             </View>
           )}
+          {isActive && !isLeftTrack && (
+            <Image
+              source={require('../../assets/images/mascots/bear.png')}
+              style={[styles.sideMascot, { transform: [{ scaleX: -1 }] }]}
+            />
+          )}
+        </View>
 
-          <Pressable
-            onPress={() => !isLocked && !isFinal && handleNodePress(course as Course)}
-            style={({ pressed }) => [
-              styles.nodeBadge,
-              isCompleted && styles.nodeBadgeCompleted,
-              isActive && styles.nodeBadgeActive,
-              isLocked && styles.nodeBadgeLocked,
-              isFinal && styles.nodeBadgeFinal,
-              pressed && !isLocked && !isFinal && { transform: [{ scale: 0.95 }] },
-            ]}
-          >
-            {isFinal ? (
-              <MaterialCommunityIcons name="treasure-chest" size={55} color={isLocked ? '#A0A0A0' : '#8B4513'} />
-            ) : isCompleted ? (
-              <MaterialCommunityIcons name="check-bold" size={50} color="#FFF" />
-            ) : isActive ? (
-              <MaterialCommunityIcons name="star" size={50} color="#FFF" />
-            ) : (
-              <MaterialCommunityIcons name="lock" size={45} color="#A0A0A0" />
+        {/* ZONE 2: CENTER TRACK (Node + Floating Label) */}
+        <View style={styles.centerZone}>
+          <View style={styles.nodeAnchor}>
+            {isPressed && (
+              <View style={[
+                styles.floatingLabel, 
+                renderLabelBelow ? styles.labelBelow : styles.labelAbove
+              ]}>
+                <View style={renderLabelBelow ? styles.arrowTop : styles.arrowBottom} />
+                <Text style={styles.floatingLabelText}>{course.title}</Text>
+              </View>
             )}
-          </Pressable>
 
-          {/* MASCOT: Positioned strictly to the side to avoid any overlap */}
-          {isActive && (
-            <View style={[styles.mascotContainer, isLeftAligned ? styles.mascotOnRight : styles.mascotOnLeft]}>
-              <Image
-                source={require('../../assets/images/mascots/bear.png')}
-                style={[styles.trailMascot, !isLeftAligned && { transform: [{ scaleX: -1 }] }]}
-              />
+            <Pressable
+              onPress={() => !isLocked && !isFinal && handleNodePress(course as Course)}
+              style={({ pressed }) => [
+                styles.nodeBadge,
+                isCompleted && styles.nodeBadgeCompleted,
+                isActive && styles.nodeBadgeActive,
+                isLocked && styles.nodeBadgeLocked,
+                isFinal && styles.nodeBadgeFinal,
+                pressed && !isLocked && !isFinal && { transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              {isFinal ? (
+                <MaterialCommunityIcons name="treasure-chest" size={50} color={isLocked ? '#A0A0A0' : '#8B4513'} />
+              ) : isCompleted ? (
+                <MaterialCommunityIcons name="check-bold" size={45} color="#FFF" />
+              ) : isActive ? (
+                <MaterialCommunityIcons name="star" size={45} color="#FFF" />
+              ) : (
+                <MaterialCommunityIcons name="lock" size={40} color="#A0A0A0" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ZONE 3: RIGHT SIDE (Milestone or Mascot) */}
+        <View style={styles.sideZone}>
+          {!isFinal && !isLeftTrack && (
+            <View style={styles.milestoneBox}>
+              <Text style={styles.milestoneLabel}>DAY</Text>
+              <Text style={styles.milestoneValue}>{index + 1}</Text>
             </View>
+          )}
+          {isActive && isLeftTrack && (
+            <Image
+              source={require('../../assets/images/mascots/bear.png')}
+              style={styles.sideMascot}
+            />
           )}
         </View>
       </View>
@@ -156,17 +178,18 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* MODERN VIBRANT HEADER */}
       <View style={styles.header}>
         <View style={styles.statChip}>
-          <MaterialCommunityIcons name="trophy-variant" size={24} color="#FFC800" />
+          <MaterialCommunityIcons name="trophy-variant" size={22} color="#FFC800" />
           <Text style={styles.statValue}>{score}</Text>
         </View>
         <View style={styles.statChip}>
-          <MaterialCommunityIcons name="heart" size={24} color="#FF4B4B" />
+          <MaterialCommunityIcons name="heart" size={22} color="#FF4B4B" />
           <Text style={styles.statValue}>{lives}</Text>
         </View>
         <View style={styles.statChip}>
-          <MaterialCommunityIcons name="fire" size={24} color="#FF9600" />
+          <MaterialCommunityIcons name="fire" size={22} color="#FF9600" />
           <Text style={styles.statValue}>{streak}</Text>
         </View>
       </View>
@@ -181,6 +204,7 @@ export default function LearnScreen() {
         </View>
       </ScrollView>
 
+      {/* LESSON MODAL OVERLAY */}
       <Modal visible={!!selectedCourse} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={[styles.lessonStage, { backgroundColor: selectedCourse?.color || '#5865F2' }]}>
@@ -225,11 +249,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 18,
+    paddingVertical: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 2,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F2F2F2',
     elevation: 2,
+    zIndex: 10,
   },
   statChip: {
     flexDirection: 'row',
@@ -242,10 +267,10 @@ const styles = StyleSheet.create({
     color: '#4B4B4B',
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 100,
   },
   trailContainer: {
-    paddingTop: 30,
+    paddingTop: 20,
     alignItems: 'center',
   },
   nodeRow: {
@@ -253,13 +278,30 @@ const styles = StyleSheet.create({
     height: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 30,
+    justifyContent: 'center',
+    paddingHorizontal: 15,
   },
-  milestoneContainer: {
-    position: 'absolute',
-    left: 20,
+  sideZone: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+  },
+  centerZone: {
+    width: NODE_SIZE + 40,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nodeAnchor: {
+    position: 'relative',
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  milestoneBox: {
+    alignItems: 'center',
   },
   milestoneLabel: {
     fontSize: 10,
@@ -270,12 +312,12 @@ const styles = StyleSheet.create({
   milestoneValue: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#777777',
+    color: '#888888',
   },
-  nodeWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sideMascot: {
+    width: MASCOT_SIZE,
+    height: MASCOT_SIZE,
+    resizeMode: 'contain',
   },
   nodeBadge: {
     width: NODE_SIZE,
@@ -284,12 +326,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 8,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-    elevation: 8,
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.15)',
+    elevation: 6,
     shadowColor: '#000',
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 6,
   },
   nodeBadgeCompleted: {
     backgroundColor: '#58CC02',
@@ -302,31 +344,37 @@ const styles = StyleSheet.create({
   nodeBadgeLocked: {
     backgroundColor: '#E5E5E5',
     borderBottomColor: '#D0D0D0',
-    opacity: 0.6,
+    opacity: 0.7,
   },
   nodeBadgeFinal: {
     backgroundColor: '#FFD700',
     borderBottomColor: '#D4AF37',
   },
+  // ADAPTIVE FLOATING LABEL
   floatingLabel: {
     position: 'absolute',
-    top: -85,
     backgroundColor: '#4B4B4B',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
     zIndex: 1000,
-    minWidth: 160,
+    minWidth: 150,
     alignItems: 'center',
-    elevation: 6,
+    elevation: 8,
+  },
+  labelAbove: {
+    bottom: NODE_SIZE + 15,
+  },
+  labelBelow: {
+    top: NODE_SIZE + 15,
   },
   floatingLabelText: {
     color: '#FFF',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
   },
-  labelArrow: {
+  arrowBottom: {
     position: 'absolute',
     bottom: -8,
     width: 0,
@@ -338,30 +386,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 8,
     borderTopColor: '#4B4B4B',
   },
-  mascotContainer: {
+  arrowTop: {
     position: 'absolute',
-    width: MASCOT_SIZE,
-    height: MASCOT_SIZE,
-    zIndex: 0, // Ensure it's separate but can be seen
-  },
-  mascotOnLeft: {
-    right: NODE_SIZE * 0.9,
-  },
-  mascotOnRight: {
-    left: NODE_SIZE * 0.9,
-  },
-  trailMascot: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
+    top: -8,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightWidth: 8,
+    borderRightColor: 'transparent',
+    borderBottomWidth: 8,
+    borderBottomColor: '#4B4B4B',
   },
   // LESSON SLIDE VIEWER STYLES
-  modalBackdrop: {
-    flex: 1,
-  },
-  lessonStage: {
-    flex: 1,
-  },
+  modalBackdrop: { flex: 1 },
+  lessonStage: { flex: 1 },
   lessonTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,24 +411,22 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     flex: 1,
-    height: 14,
+    height: 12,
     backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 7,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 7,
+    borderRadius: 6,
   },
-  exitBtn: {
-    padding: 4,
-  },
+  exitBtn: { padding: 4 },
   slideFrame: {
     width: SCREEN_WIDTH,
     paddingHorizontal: 30,
-    paddingTop: 10,
-    paddingBottom: 40,
+    paddingTop: 5,
+    paddingBottom: 30,
     justifyContent: 'space-between',
     flex: 1,
   },
@@ -399,9 +436,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   slideMascotContainer: {
-    marginBottom: 15,
-    width: 150, // Downsized significantly to prevent overlap
-    height: 150,
+    marginBottom: 10,
+    width: 130,
+    height: 130,
   },
   slideMascot: {
     width: '100%',
@@ -409,27 +446,27 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   slideEmoji: {
-    fontSize: 70,
-    marginBottom: 15,
+    fontSize: 60,
+    marginBottom: 10,
   },
   slideHighlight: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
     color: '#FFF',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     textTransform: 'uppercase',
   },
   slideBody: {
-    fontSize: 18,
+    fontSize: 17,
     color: '#FFF',
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 24,
     fontWeight: '700',
   },
   slideActionBtn: {
     backgroundColor: '#FFF',
-    paddingVertical: 18,
+    paddingVertical: 16,
     borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -437,7 +474,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   slideActionText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: '#4B4B4B',
     marginRight: 10,
