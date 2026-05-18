@@ -1,7 +1,19 @@
+import { useAuth } from '@/src/context/AuthContext';
+import { firebaseDb } from '@/src/lib/firebase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  addDoc,
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+  where
+} from '@react-native-firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import * as LucideIcons from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,16 +30,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
- * SECURE API CONFIGURATION
- * Upgraded to gemini-3.1-flash-lite for high-performance multi-modal analysis
+ * SECURE API ARCHITECTURE
+ * Target Model: gemini-1.5-flash (Standard for High-Performance Multi-Modal)
  */
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
-const MODEL_NAME = "gemini-3.1-flash-lite"; // Falling back to stable 1.5 if 3.1 is not yet in public registry, but targeting 3.1 via prompt context
-const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
 /**
- * UPGRADED MULTI-MODAL SCANNER TOOLS
+ * INSTITUTIONAL SCANNER CONFIGURATIONS
  */
 const SCAN_TOOLS = [
   {
@@ -36,13 +47,13 @@ const SCAN_TOOLS = [
     desc: 'Deep visual analysis of chart patterns & levels',
     icon: 'chart-areaspline',
     color: '#CE82FF',
-    prompt: "Act as a Senior Quant. Evaluate the uploaded image for structural support levels, resistance zones, and key technical indicators. Be precise with price points."
+    prompt: "Act as a Senior Quant. Evaluate the uploaded image for structural support levels, resistance zones, and key technical indicators. Return a detailed markdown analysis."
   },
   {
     id: 'patterns',
     title: 'Technical Pattern Pulse',
     desc: 'Scan for Candlestick & Channel setups',
-    icon: 'chart-candlestick', // FIXED ICON STRING
+    lucideIcon: 'CandlestickChart', // UPGRADED TO LUCIDE
     color: '#58CC02',
     prompt: "Analyze this image for major Japanese candlestick setups (Engulfing, Hammers) and breakout channels. Provide a probability score for the next major movement."
   },
@@ -59,13 +70,14 @@ const SCAN_TOOLS = [
 interface SavedScan {
   id: string;
   toolTitle: string;
-  timestamp: string;
+  timestamp: any;
   response: string;
   imageUri?: string;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  sentiment: 'Bullish' | 'Bearish' | 'Neutral';
 }
 
 export default function ScanScreen() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'scan' | 'history'>('scan');
   const [selectedTool, setSelectedTool] = useState(SCAN_TOOLS[0]);
   const [isScanning, setIsScanning] = useState(false);
@@ -73,63 +85,95 @@ export default function ScanScreen() {
   const [activeAnalysis, setActiveAnalysis] = useState<SavedScan | null>(null);
 
   /**
-   * MULTI-MODAL IMAGE PICKER FLOW
+   * MODULAR FIREBASE V22+ LIVE SYNC
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    // Constructing modular query chain
+    const scansRef = collection(firebaseDb, 'scans');
+    const q = query(
+      scansRef,
+      where('userId', '==', user.uid),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const scans = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+      
+      setHistory(scans.map(s => ({
+        id: s.id,
+        toolTitle: s.toolTitle,
+        timestamp: s.timestamp,
+        response: s.response,
+        imageUri: s.imageUri,
+        sentiment: s.sentiment
+      })));
+    }, (error) => {
+      console.error("[Firestore] Sync Error:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  /**
+   * MULTI-MODAL SCAN ENGINE
    */
   const runMultiModalScan = async () => {
     if (!API_KEY) {
-      Alert.alert("Configuration Error", "Gemini API key not found in environment.");
+      Alert.alert("Security Alert", "API Key configuration missing.");
       return;
     }
 
-    // 1. Pick Image from Gallery
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    if (!user) return;
+
+    // Image Picker: Modern Modular Array Syntax
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
       base64: true,
     });
 
-    if (pickerResult.canceled) return;
+    if (result.canceled) return;
 
-    const base64Data = pickerResult.assets[0].base64;
-    const imageUri = pickerResult.assets[0].uri;
-
-    if (!base64Data) {
-      Alert.alert("Error", "Could not process image data.");
-      return;
-    }
+    const base64Data = result.assets[0].base64;
+    const localUri = result.assets[0].uri;
 
     setIsScanning(true);
     try {
-      // 2. Prepare Multi-Modal Payload for Gemini
       const prompt = selectedTool.prompt;
       const imagePart = {
         inlineData: {
-          data: base64Data,
+          data: base64Data!,
           mimeType: "image/jpeg",
         },
       };
 
-      // 3. Execute generateContent with upgraded model logic
-      const result = await model.generateContent([prompt, imagePart]);
-      const responseText = result.response.text();
+      // Execute Gemini Multi-Modal Logic
+      const apiResult = await model.generateContent([prompt, imagePart]);
+      const responseText = apiResult.response.text();
+      const detectedSentiment = responseText.toLowerCase().includes('bullish') ? 'Bullish' : 'Bearish';
 
-      // 4. Persistence Engine Storage
-      const newScan: SavedScan = {
-        id: Date.now().toString(),
+      // Persistence: Modular AddDoc Request
+      await addDoc(collection(firebaseDb, 'scans'), {
+        userId: user.uid,
+        userEmail: user.email,
         toolTitle: selectedTool.title,
-        timestamp: new Date().toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }),
+        scannerId: selectedTool.id,
+        timestamp: Timestamp.now(),
         response: responseText,
-        imageUri: imageUri,
-        sentiment: responseText.toLowerCase().includes('bullish') ? 'bullish' : 'bearish'
-      };
+        sentiment: detectedSentiment,
+        imageUri: localUri,
+      });
 
-      setHistory([newScan, ...history]);
-      setActiveAnalysis(newScan);
       setActiveTab('history');
     } catch (error) {
-      console.error("Gemini Scan Error:", error);
-      Alert.alert("AI Analysis Failed", "The model was unable to parse the chart. Please try again with a clearer image.");
+      console.error("[AI] Processing Error:", error);
+      Alert.alert("Analysis Failed", "Failed to parse chart architecture.");
     } finally {
       setIsScanning(false);
     }
@@ -137,62 +181,65 @@ export default function ScanScreen() {
 
   const renderScanInterface = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-      {/* AI ASSISTANT BADGE */}
+      {/* AI ASSISTANT PANEL */}
       <View style={styles.assistantRow}>
-        <View style={styles.mascotBadge}>
-          <Image source={require('../../assets/images/mascots/bear.png')} style={styles.mascotIcon} />
-          <View style={styles.processorLabel}>
-            <Text style={styles.processorText}>AI VISION</Text>
+        <View style={styles.mascotBox}>
+          <Image source={require('../../assets/images/mascots/bear.png')} style={styles.mascot} />
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>AI PROCESSOR</Text>
           </View>
         </View>
-        <View style={styles.assistantInfo}>
-          <Text style={styles.mainTitle}>Multi-Modal Analysis</Text>
-          <Text style={styles.subTitle}>Upload a chart to run institutional AI scans.</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.mainHeader}>Institutional Scan</Text>
+          <Text style={styles.subHeader}>Target: Gemini-3.1-Flash-Lite (Vision Enabled)</Text>
         </View>
       </View>
 
-      {/* SELECTOR GRID */}
-      <View style={styles.toolStack}>
+      {/* SCANNER GRID */}
+      <View style={styles.stack}>
         {SCAN_TOOLS.map((tool) => (
           <Pressable
             key={tool.id}
             onPress={() => setSelectedTool(tool)}
             style={[
-              styles.toolCard,
+              styles.card,
               selectedTool.id === tool.id && { borderColor: tool.color, backgroundColor: tool.color + '05' }
             ]}
           >
             <View style={[styles.iconFrame, { backgroundColor: tool.color + '15' }]}>
-              <MaterialCommunityIcons name={tool.icon as any} size={26} color={tool.color} />
+              {tool.lucideIcon ? (
+                <LucideIcons.CandlestickChart size={26} color={tool.color} />
+              ) : (
+                <MaterialCommunityIcons name={tool.icon as any} size={26} color={tool.color} />
+              )}
             </View>
-            <View style={styles.toolText}>
+            <View style={styles.cardText}>
               <Text style={styles.toolTitle}>{tool.title}</Text>
               <Text style={styles.toolDesc} numberOfLines={1}>{tool.desc}</Text>
             </View>
             {selectedTool.id === tool.id && (
-              <MaterialCommunityIcons name="radiobox-marked" size={22} color={tool.color} />
+              <MaterialCommunityIcons name="check-circle" size={20} color={tool.color} />
             )}
           </Pressable>
         ))}
       </View>
 
-      {/* ACTION PANEL */}
-      <View style={styles.actionPanel}>
-        <View style={styles.visionBox}>
-          <MaterialCommunityIcons name="view-grid-plus-outline" size={40} color="#E0E0E0" />
-          <Text style={styles.visionHint}>Select chart image to begin</Text>
+      <View style={styles.actionZone}>
+        <View style={styles.dropZone}>
+          <MaterialCommunityIcons name="image-search-outline" size={40} color="#E0E0E0" />
+          <Text style={styles.dropText}>Tap to upload chart</Text>
         </View>
 
         <Pressable 
           onPress={runMultiModalScan} 
           disabled={isScanning}
-          style={[styles.mainActionBtn, isScanning && styles.btnDisabled]}
+          style={[styles.primaryBtn, isScanning && styles.btnDisabled]}
         >
           {isScanning ? (
             <ActivityIndicator color="#FFF" />
           ) : (
             <>
-              <MaterialCommunityIcons name="image-search-outline" size={24} color="#FFF" />
+              <MaterialCommunityIcons name="scan-helper" size={24} color="#FFF" />
               <Text style={styles.btnText}>Analyze Now</Text>
             </>
           )}
@@ -203,21 +250,20 @@ export default function ScanScreen() {
 
   const renderHistoryInterface = () => (
     <ScrollView contentContainerStyle={styles.historyScroll}>
-      <Text style={styles.sectionHeader}>HISTORICAL PERSISTENCE LOG</Text>
+      <Text style={styles.sectionTitle}>PERSISTENCE REPOSITORY</Text>
       
       {activeAnalysis && (
-        <View style={styles.detailView}>
+        <View style={styles.overlay}>
           <View style={styles.detailCard}>
-            <View style={styles.detailTop}>
-              <Text style={styles.detailTag}>{activeAnalysis.toolTitle}</Text>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle}>{activeAnalysis.toolTitle}</Text>
               <Pressable onPress={() => setActiveAnalysis(null)}>
-                <MaterialCommunityIcons name="close-circle" size={24} color="#BDBDBD" />
+                <MaterialCommunityIcons name="close" size={24} color="#888" />
               </Pressable>
             </View>
-            {activeAnalysis.imageUri && (
-              <Image source={{ uri: activeAnalysis.imageUri }} style={styles.analysisImage} />
-            )}
-            <Text style={styles.responseText}>{activeAnalysis.response}</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.detailScroll}>
+              <Text style={styles.markdown}>{activeAnalysis.response}</Text>
+            </ScrollView>
           </View>
         </View>
       )}
@@ -225,28 +271,30 @@ export default function ScanScreen() {
       {history.map((item) => (
         <Pressable 
           key={item.id} 
-          style={styles.logCard}
+          style={styles.logItem}
           onPress={() => setActiveAnalysis(item)}
         >
           <View style={styles.logIcon}>
-            <MaterialCommunityIcons name="history" size={22} color="#4B4B4B" />
+            <MaterialCommunityIcons name="shield-search" size={22} color="#4B4B4B" />
           </View>
           <View style={styles.logBody}>
-            <Text style={styles.logTitle}>{item.toolTitle}</Text>
-            <Text style={styles.logTime}>{item.timestamp}</Text>
+            <Text style={styles.logTool}>{item.toolTitle}</Text>
+            <Text style={styles.logDate}>
+              {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleDateString() : 'Active'}
+            </Text>
           </View>
-          <View style={[styles.pill, { backgroundColor: item.sentiment === 'bullish' ? '#58CC0220' : '#FF4B4B20' }]}>
-            <Text style={[styles.pillText, { color: item.sentiment === 'bullish' ? '#58CC02' : '#FF4B4B' }]}>
-              {item.sentiment.toUpperCase()}
+          <View style={[styles.pill, { backgroundColor: (item.sentiment || 'Neutral') === 'Bullish' ? '#58CC0220' : '#FF4B4B20' }]}>
+            <Text style={[styles.pillText, { color: (item.sentiment || 'Neutral') === 'Bullish' ? '#58CC02' : '#FF4B4B' }]}>
+              {(item.sentiment || 'Neutral').toUpperCase()}
             </Text>
           </View>
         </Pressable>
       ))}
 
       {history.length === 0 && (
-        <View style={styles.emptyView}>
-          <MaterialCommunityIcons name="cloud-search-outline" size={50} color="#F0F0F0" />
-          <Text style={styles.emptyText}>No saved analysis records.</Text>
+        <View style={styles.empty}>
+          <MaterialCommunityIcons name="history" size={50} color="#F0F0F0" />
+          <Text style={styles.emptyText}>No historical records found.</Text>
         </View>
       )}
     </ScrollView>
@@ -254,19 +302,18 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* BRANDED TAB NAV */}
-      <View style={styles.navBar}>
+      <View style={styles.tabNav}>
         <Pressable 
           onPress={() => setActiveTab('scan')} 
-          style={[styles.navItem, activeTab === 'scan' && styles.navItemActive]}
+          style={[styles.tab, activeTab === 'scan' && styles.tabActive]}
         >
-          <Text style={[styles.navText, activeTab === 'scan' && styles.navTextActive]}>AI Scanner</Text>
+          <Text style={[styles.tabText, activeTab === 'scan' && styles.tabTextActive]}>Scanner</Text>
         </Pressable>
         <Pressable 
           onPress={() => setActiveTab('history')} 
-          style={[styles.navItem, activeTab === 'history' && styles.navItemActive]}
+          style={[styles.tab, activeTab === 'history' && styles.tabActive]}
         >
-          <Text style={[styles.navText, activeTab === 'history' && styles.navTextActive]}>History</Text>
+          <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>History</Text>
         </Pressable>
       </View>
 
@@ -276,127 +323,48 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  navBar: {
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  tabNav: {
     flexDirection: 'row',
     marginHorizontal: 20,
     marginTop: 15,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#F8F8F8',
     borderRadius: 15,
     padding: 5,
   },
-  navItem: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  navItemActive: {
-    backgroundColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
-  navText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#A0A0A0',
-  },
-  navTextActive: {
-    color: '#4B4B4B',
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-  assistantRow: {
-    flexDirection: 'row',
-    padding: 25,
-    alignItems: 'center',
-  },
-  mascotBadge: {
-    alignItems: 'center',
-  },
-  mascotIcon: {
-    width: 65,
-    height: 65,
-    resizeMode: 'contain',
-  },
-  processorLabel: {
-    backgroundColor: '#4B4B4B',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: -10,
-  },
-  processorText: {
-    color: '#FFF',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  assistantInfo: {
-    flex: 1,
-    marginLeft: 20,
-  },
-  mainTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#4B4B4B',
-  },
-  subTitle: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-  },
-  toolStack: {
-    paddingHorizontal: 20,
-  },
-  toolCard: {
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  tabActive: { backgroundColor: '#FFFFFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  tabText: { fontSize: 14, fontWeight: '800', color: '#BDBDBD' },
+  tabTextActive: { color: '#4B4B4B' },
+  scrollContent: { paddingBottom: 100 },
+  assistantRow: { flexDirection: 'row', padding: 25, alignItems: 'center' },
+  mascotBox: { alignItems: 'center' },
+  mascot: { width: 65, height: 65, resizeMode: 'contain' },
+  badge: { backgroundColor: '#4B4B4B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginTop: -8 },
+  badgeText: { color: '#FFF', fontSize: 7, fontWeight: '900' },
+  titleContainer: { flex: 1, marginLeft: 20 },
+  mainHeader: { fontSize: 19, fontWeight: '900', color: '#4B4B4B' },
+  subHeader: { fontSize: 12, color: '#999', marginTop: 4 },
+  stack: { paddingHorizontal: 20 },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 18,
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
-    marginBottom: 15,
+    marginBottom: 12,
     borderWidth: 1.5,
     borderColor: '#F8F8F8',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
+    elevation: 2,
   },
-  iconFrame: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  toolText: {
-    flex: 1,
-    marginLeft: 18,
-  },
-  toolTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#4B4B4B',
-  },
-  toolDesc: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 3,
-  },
-  actionPanel: {
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  visionBox: {
-    height: 140,
-    backgroundColor: '#FBFBFB',
+  iconFrame: { width: 50, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  cardText: { flex: 1, marginLeft: 15 },
+  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B' },
+  toolDesc: { fontSize: 12, color: '#999', marginTop: 3 },
+  actionZone: { paddingHorizontal: 20, marginTop: 10 },
+  dropZone: {
+    height: 120,
+    backgroundColor: '#FAFAFA',
     borderRadius: 24,
     borderWidth: 2,
     borderColor: '#F0F0F0',
@@ -405,127 +373,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  visionHint: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#BDBDBD',
-    fontWeight: '700',
-  },
-  mainActionBtn: {
+  dropText: { marginTop: 10, fontSize: 12, color: '#BDBDBD', fontWeight: '700' },
+  primaryBtn: {
     backgroundColor: '#4B4B4B',
-    paddingVertical: 20,
+    paddingVertical: 18,
     borderRadius: 22,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  btnText: {
-    color: '#FFF',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  // HISTORY INTERFACE
-  historyScroll: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#D0D0D0',
-    letterSpacing: 2,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  detailView: {
-    marginBottom: 25,
-  },
-  detailCard: {
-    backgroundColor: '#F9F9F9',
-    padding: 22,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
-  detailTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  detailTag: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#4B4B4B',
-    textTransform: 'uppercase',
-  },
-  analysisImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-    marginBottom: 15,
-    resizeMode: 'cover',
-  },
-  responseText: {
-    fontSize: 14,
-    color: '#555',
-    lineHeight: 22,
-    fontWeight: '500',
-  },
-  logCard: {
+  btnDisabled: { opacity: 0.6 },
+  btnText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
+  // HISTORY
+  historyScroll: { padding: 20, paddingBottom: 100 },
+  sectionTitle: { fontSize: 10, fontWeight: '900', color: '#D0D0D0', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
+  overlay: { marginBottom: 20 },
+  detailCard: { backgroundColor: '#F9F9F9', padding: 22, borderRadius: 25, borderWidth: 1, borderColor: '#F0F0F0', maxHeight: 400 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  detailTitle: { fontSize: 16, fontWeight: '900', color: '#4B4B4B' },
+  detailScroll: { flex: 1 },
+  markdown: { fontSize: 13, color: '#555', lineHeight: 20 },
+  logItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    padding: 18,
-    borderRadius: 22,
+    padding: 16,
+    borderRadius: 20,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#F5F5F5',
     elevation: 2,
   },
-  logIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#FBFBFB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logBody: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  logTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#4B4B4B',
-  },
-  logTime: {
-    fontSize: 11,
-    color: '#BDBDBD',
-    marginTop: 3,
-  },
-  pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  pillText: {
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  emptyView: {
-    marginTop: 80,
-    alignItems: 'center',
-  },
-  emptyText: {
-    marginTop: 15,
-    color: '#D0D0D0',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  logIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FBFBFB', justifyContent: 'center', alignItems: 'center' },
+  logBody: { flex: 1, marginLeft: 15 },
+  logTool: { fontSize: 14, fontWeight: '800', color: '#4B4B4B' },
+  logDate: { fontSize: 11, color: '#BDBDBD', marginTop: 2 },
+  pill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  pillText: { fontSize: 9, fontWeight: '900' },
+  empty: { marginTop: 60, alignItems: 'center' },
+  emptyText: { marginTop: 15, color: '#D0D0D0', fontSize: 14, fontWeight: '700' },
 });
