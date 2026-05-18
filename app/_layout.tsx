@@ -1,19 +1,27 @@
-import 'react-native-gesture-handler';
-import 'react-native-reanimated';
+import { LogBox } from 'react-native';
+
+// Force Fabric's native event dispatcher to drop layout panic warnings globally
+LogBox.ignoreLogs([
+  'Unsupported top level event type "topSvgLayout"',
+  'Using a Test Store API key' // Cleans up the RevenueCat development warning too!
+]);
+
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/src/context/AuthContext';
 
 export {
   // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+  ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {

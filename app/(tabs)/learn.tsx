@@ -12,12 +12,7 @@ import {
   LogBox,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  ChevronRight, 
-  BrainCircuit, 
-  X,
-  ArrowRight,
-} from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ACADEMY_COURSES, Course, Slide } from '../../src/data/coursesData';
 
 // Task 1: Permanently kill 'topSvgLayout' crashes
@@ -82,13 +77,13 @@ export default function LearnScreen() {
         <Text style={styles.slideActionText}>
           {index === (selectedCourse?.slides.length || 0) - 1 ? 'Finish Module' : 'Continue'}
         </Text>
-        <ArrowRight size={20} color="#000" />
+        <MaterialCommunityIcons name="arrow-right" size={24} color="#000" />
       </Pressable>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges = {['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View>
@@ -102,7 +97,7 @@ export default function LearnScreen() {
 
         <View style={styles.introCard}>
           <View style={styles.glassBackground} />
-          <BrainCircuit size={24} color="#6366F1" style={{ marginBottom: 12 }} />
+          <MaterialCommunityIcons name="brain" size={32} color="#6366F1" style={{ marginBottom: 12 }} />
           <Text style={styles.introTitle}>Sharpen Your Edge</Text>
           <Text style={styles.introSubtitle}>
             Monai Architect uses institutional-grade modules to bridge the gap between retail trading and professional quant analysis.
@@ -119,13 +114,13 @@ export default function LearnScreen() {
           >
             <View style={styles.glassBackground} />
             <View style={[styles.iconBox, { backgroundColor: course.color + '15' }]}>
-              <course.icon size={24} color={course.color} />
+              <MaterialCommunityIcons name={course.icon} size={28} color={course.color} />
             </View>
             <View style={styles.courseInfo}>
               <Text style={styles.courseTitle}>{course.title}</Text>
               <Text style={styles.courseSubtitle}>{course.chapter}</Text>
             </View>
-            <ChevronRight size={20} color="#94A3B8" />
+            <MaterialCommunityIcons name="chevron-right" size={24} color="#94A3B8" />
           </Pressable>
         ))}
       </ScrollView>
@@ -141,7 +136,7 @@ export default function LearnScreen() {
                   current={activeSlide} 
                 />
                 <Pressable onPress={() => setSelectedCourse(null)} style={styles.closeBtn}>
-                  <X size={24} color="#FFF" />
+                  <MaterialCommunityIcons name="close" size={28} color="#FFF" />
                 </Pressable>
               </View>
 

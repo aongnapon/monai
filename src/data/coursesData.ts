@@ -1,14 +1,4 @@
-import { 
-  BarChart4, 
-  ShieldCheck, 
-  Zap, 
-  Waves, 
-  Layout, 
-  Settings2, 
-  Eye, 
-  Activity,
-  LucideIcon
-} from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export interface Slide {
   id: string;
@@ -23,7 +13,7 @@ export interface Course {
   course_id: string;
   title: string;
   chapter: string;
-  icon: LucideIcon;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   color: string;
   slides: Slide[];
 }
@@ -37,7 +27,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '1',
     title: 'Foundations of Technical Analysis',
     chapter: 'Technical Analysis',
-    icon: BarChart4,
+    icon: 'chart-bar',
     color: '#34C759',
     slides: [
       { 
@@ -84,7 +74,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '2',
     title: 'Psychology of Risk Management',
     chapter: 'Risk Management',
-    icon: ShieldCheck,
+    icon: 'shield-check',
     color: '#0EA5E9',
     slides: [
       { 
@@ -131,7 +121,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '3',
     title: 'Crypto vs. Traditional Assets',
     chapter: 'Crypto Mechanics',
-    icon: Zap,
+    icon: 'lightning-bolt',
     color: '#F59E0B',
     slides: [
       { 
@@ -178,7 +168,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '4',
     title: 'Volume & Liquidity Outflows',
     chapter: 'Technical Analysis',
-    icon: Waves,
+    icon: 'waves',
     color: '#8B5CF6',
     slides: [
       { 
@@ -225,7 +215,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '5',
     title: 'Chart Pattern Architecture',
     chapter: 'Technical Analysis',
-    icon: Layout,
+    icon: 'view-dashboard',
     color: '#EC4899',
     slides: [
       { 
@@ -272,7 +262,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '6',
     title: 'Advanced Stop-Loss Automation',
     chapter: 'Risk Management',
-    icon: Settings2,
+    icon: 'cog',
     color: '#6366F1',
     slides: [
       { 
@@ -301,7 +291,7 @@ export const ACADEMY_COURSES: Course[] = [
       { 
         id: '6-4', 
         emoji: '📐', 
-        text: 'ATR-based Stops (Average True Range) adjust your stop distance based on current market noise and volatility.', 
+        text: 'ATR-based Stops adjust your stop distance based on current market noise and volatility.', 
         highlightText: 'ATR-based Stops',
         showMascot: false 
       },
@@ -319,7 +309,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '7',
     title: 'The Whale Tracker',
     chapter: 'Market Mechanics',
-    icon: Eye,
+    icon: 'eye',
     color: '#14B8A6',
     slides: [
       { 
@@ -366,7 +356,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '8',
     title: 'Volatility Handles',
     chapter: 'Risk Management',
-    icon: Activity,
+    icon: 'pulse',
     color: '#F97316',
     slides: [
       { 

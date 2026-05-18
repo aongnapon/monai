@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -13,8 +13,10 @@ import {
   LogBox,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -26,10 +28,6 @@ import {
   ShieldCheck,
   Zap,
   Info,
-  History,
-  CreditCard,
-  Plus,
-  Minus
 } from 'lucide-react-native';
 
 import { useAuth } from '@/src/context/AuthContext';
@@ -41,55 +39,57 @@ LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
+ * CONFIG: API Environment Variables
+ */
+const FINNHUB_KEY = process.env.EXPO_PUBLIC_FINNHUB_API_KEY;
+const COINGECKO_KEY = process.env.EXPO_PUBLIC_COINGECKO_API_KEY;
+
+/**
  * PRODUCTION DATA: Institutional Baseline Assets
  */
-const MARKET_ASSETS = [
-  { ticker: 'AAPL', name: 'Apple Inc.', type: 'stock', domain: 'apple.com', price: 185.92 },
-  { ticker: 'NVDA', name: 'NVIDIA Corp.', type: 'stock', domain: 'nvidia.com', price: 822.79 },
-  { ticker: 'TSLA', name: 'Tesla, Inc.', type: 'stock', domain: 'tesla.com', price: 175.22 },
-  { ticker: 'MSFT', name: 'Microsoft Corp.', type: 'stock', domain: 'microsoft.com', price: 415.50 },
-  { ticker: 'AMZN', name: 'Amazon.com', type: 'stock', domain: 'amazon.com', price: 178.22 },
-  { ticker: 'SPY', name: 'S&P 500 ETF', type: 'stock', domain: 'spglobal.com', price: 512.85 },
-  { ticker: 'QQQ', name: 'Nasdaq 100', type: 'stock', domain: 'nasdaq.com', price: 438.60 },
-  { ticker: 'BTC', name: 'Bitcoin', type: 'crypto', price: 68420.50 },
-  { ticker: 'ETH', name: 'Ethereum', type: 'crypto', price: 3450.12 },
-  { ticker: 'SOL', name: 'Solana', type: 'crypto', price: 145.80 },
-  { ticker: 'GOLD', name: 'Gold Bullion', type: 'commodity', emoji: '📀', price: 2160.40 },
-  { ticker: 'OIL', name: 'Crude Oil', type: 'commodity', emoji: '🛢️', price: 78.45 },
-  { ticker: 'META', name: 'Meta Platforms', type: 'stock', domain: 'meta.com', price: 490.22 },
-  { ticker: 'GOOGL', name: 'Alphabet Inc.', type: 'stock', domain: 'google.com', price: 142.65 },
-  { ticker: 'NFLX', name: 'Netflix, Inc.', type: 'stock', domain: 'netflix.com', price: 605.88 },
+const BASELINE_ASSETS = [
+  { ticker: 'AAPL', name: 'Apple Inc.', type: 'stock', domain: 'apple.com', coinId: null },
+  { ticker: 'NVDA', name: 'NVIDIA Corp.', type: 'stock', domain: 'nvidia.com', coinId: null },
+  { ticker: 'TSLA', name: 'Tesla, Inc.', type: 'stock', domain: 'tesla.com', coinId: null },
+  { ticker: 'MSFT', name: 'Microsoft Corp.', type: 'stock', domain: 'microsoft.com', coinId: null },
+  { ticker: 'AMZN', name: 'Amazon.com', type: 'stock', domain: 'amazon.com', coinId: null },
+  { ticker: 'BTC', name: 'Bitcoin', type: 'crypto', coinId: 'bitcoin' },
+  { ticker: 'ETH', name: 'Ethereum', type: 'crypto', coinId: 'ethereum' },
+  { ticker: 'SOL', name: 'Solana', type: 'crypto', coinId: 'solana' },
 ];
+
+/**
+ * FALLBACK DATA: Institutional Mock Baseline (Safe-Style UI)
+ */
+const FALLBACK_PRICES: Record<string, { price: number; change: number }> = {
+  AAPL: { price: 185.92, change: 1.2 },
+  NVDA: { price: 822.79, change: 2.5 },
+  TSLA: { price: 175.22, change: -0.8 },
+  MSFT: { price: 415.50, change: 0.4 },
+  AMZN: { price: 178.22, change: 1.1 },
+  BTC: { price: 68420.50, change: 3.2 },
+  ETH: { price: 3450.12, change: 2.1 },
+  SOL: { price: 145.80, change: 5.4 },
+};
 
 /**
  * COMPONENT: Institutional Asset Logo Engine
  */
-const AssetLogo = ({ ticker, type, domain, emoji }: { ticker: string; type: string; domain?: string; emoji?: string }) => {
+const AssetLogo = ({ ticker, type, domain }: { ticker: string; type: string; domain?: string }) => {
   const [error, setError] = useState(false);
+  const uri = type === 'stock' ? `https://logo.clearbit.com/${domain}` : `https://cryptoicons.org/api/icon/${ticker.toLowerCase()}/200`;
 
-  const getSource = () => {
-    if (type === 'stock' && domain) return `https://logo.clearbit.com/${domain}`;
-    if (type === 'crypto') return `https://cryptoicons.org/api/icon/${ticker.toLowerCase()}/200`;
-    return null;
-  };
-
-  const uri = getSource();
-
-  if (error || !uri || type === 'commodity') {
+  if (error || !uri) {
     return (
       <View style={[styles.logoFallback, { backgroundColor: '#F3F4F6' }]}>
-        <Text style={styles.fallbackEmoji}>{emoji || '📈'}</Text>
+        <Text style={styles.fallbackEmoji}>📈</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.logoContainer}>
-      <Image 
-        source={{ uri }} 
-        style={styles.logoImage} 
-        onError={() => setError(true)}
-      />
+      <Image source={{ uri }} style={styles.logoImage} onError={() => setError(true)} />
     </View>
   );
 };
@@ -98,7 +98,11 @@ export default function PortfolioScreen() {
   const { user } = useAuth();
   const db = getFirestore();
 
-  // State Management
+  // Market Data State
+  const [marketPrices, setMarketPrices] = useState<Record<string, { price: number; change: number }>>(FALLBACK_PRICES);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Portfolio State
   const [cashBalance, setCashBalance] = useState(100000.00);
   const [holdings, setHoldings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,10 +111,55 @@ export default function PortfolioScreen() {
   const [isBuying, setIsBuying] = useState(true);
 
   /**
+   * ENGINE: Global Market Data Fetcher
+   */
+  const fetchMarketData = useCallback(async () => {
+    try {
+      const updatedPrices = { ...marketPrices };
+
+      // 1. Fetch Stock Data (Finnhub)
+      if (FINNHUB_KEY) {
+        const stocks = BASELINE_ASSETS.filter(a => a.type === 'stock');
+        await Promise.all(stocks.map(async (stock) => {
+          const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${stock.ticker}&token=${FINNHUB_KEY}`);
+          const data = await res.json();
+          if (data.c) {
+            updatedPrices[stock.ticker] = { price: data.c, change: data.dp };
+          }
+        }));
+      }
+
+      // 2. Fetch Crypto Data (CoinGecko)
+      const cryptos = BASELINE_ASSETS.filter(a => a.type === 'crypto');
+      const coinIds = cryptos.map(c => c.coinId).join(',');
+      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`;
+      
+      const cgRes = await fetch(cgUrl, COINGECKO_KEY ? { headers: { 'x-cg-pro-api-key': COINGECKO_KEY } } : {});
+      const cgData = await cgRes.json();
+      
+      cryptos.forEach(crypto => {
+        if (crypto.coinId && cgData[crypto.coinId]) {
+          updatedPrices[crypto.ticker] = { 
+            price: cgData[crypto.coinId].usd, 
+            change: cgData[crypto.coinId].usd_24h_change 
+          };
+        }
+      });
+
+      setMarketPrices(updatedPrices);
+    } catch (error) {
+      console.warn('Market Data Engine: Falling back to static cache.', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [marketPrices]);
+
+  /**
    * DATA PERSISTENCE: Firestore Sync
    */
   useEffect(() => {
     if (!user?.uid) return;
+    fetchMarketData();
 
     const portfolioRef = doc(db, 'user_portfolios', user.uid);
     const unsubscribe = onSnapshot(portfolioRef, (docSnap) => {
@@ -119,7 +168,6 @@ export default function PortfolioScreen() {
         setCashBalance(data.cashBalance ?? 100000.00);
         setHoldings(data.holdings ?? []);
       } else {
-        // Initial setup for new user
         setDoc(portfolioRef, { cashBalance: 100000.00, holdings: [], updatedAt: serverTimestamp() });
       }
       setLoading(false);
@@ -130,28 +178,30 @@ export default function PortfolioScreen() {
 
   const totalMarketValue = useMemo(() => {
     return holdings.reduce((sum, hold) => {
-      const asset = MARKET_ASSETS.find(a => a.ticker === hold.ticker);
-      return sum + (hold.quantity * (asset?.price || 0));
+      const livePrice = marketPrices[hold.ticker]?.price || FALLBACK_PRICES[hold.ticker].price;
+      return sum + (hold.quantity * livePrice);
     }, 0);
-  }, [holdings]);
+  }, [holdings, marketPrices]);
 
   const netWorth = cashBalance + totalMarketValue;
   const totalReturn = netWorth - 100000;
   const returnPct = (totalReturn / 100000) * 100;
 
   /**
-   * TRANSACTION ENGINE: Executing Mock Trades
+   * TRANSACTION ENGINE: Executing Live Paper Trades
    */
   const handleTrade = async () => {
     if (!user?.uid || !selectedAsset) return;
 
     const quantity = parseFloat(tradeAmount);
     if (isNaN(quantity) || quantity <= 0) {
-      Alert.alert('Invalid Quantity', 'Please enter a valid amount to trade.');
+      Alert.alert('Invalid Quantity', 'Please enter a valid amount.');
       return;
     }
 
-    const totalCost = quantity * selectedAsset.price;
+    const livePrice = marketPrices[selectedAsset.ticker]?.price || FALLBACK_PRICES[selectedAsset.ticker].price;
+    const totalCost = quantity * livePrice;
+    
     const portfolioRef = doc(db, 'user_portfolios', user.uid);
     const transCollection = collection(portfolioRef, 'transactions');
 
@@ -161,7 +211,7 @@ export default function PortfolioScreen() {
 
     if (isBuying) {
       if (totalCost > cashBalance) {
-        Alert.alert('Insufficient Funds', 'You do not have enough mock cash for this trade.');
+        Alert.alert('Insufficient Funds', 'Transfer more mock cash to execute.');
         return;
       }
       updatedCash -= totalCost;
@@ -171,12 +221,11 @@ export default function PortfolioScreen() {
         const newBasis = ((h.avgPrice * h.quantity) + totalCost) / newQty;
         updatedHoldings[existingIndex] = { ...h, quantity: newQty, avgPrice: newBasis };
       } else {
-        updatedHoldings.push({ ticker: selectedAsset.ticker, quantity, avgPrice: selectedAsset.price });
+        updatedHoldings.push({ ticker: selectedAsset.ticker, quantity, avgPrice: livePrice });
       }
     } else {
-      // Selling
       if (existingIndex === -1 || updatedHoldings[existingIndex].quantity < quantity) {
-        Alert.alert('Insufficient Shares', 'You do not own enough of this asset to sell.');
+        Alert.alert('Insufficient Shares', 'You do not own enough of this asset.');
         return;
       }
       updatedCash += totalCost;
@@ -190,7 +239,6 @@ export default function PortfolioScreen() {
     }
 
     try {
-      // Atomic persist to Firestore
       await setDoc(portfolioRef, { 
         cashBalance: updatedCash, 
         holdings: updatedHoldings, 
@@ -201,37 +249,39 @@ export default function PortfolioScreen() {
         ticker: selectedAsset.ticker,
         type: isBuying ? 'BUY' : 'SELL',
         quantity,
-        price: selectedAsset.price,
+        price: livePrice,
         timestamp: serverTimestamp(),
       });
 
       setSelectedAsset(null);
       setTradeAmount('');
-      Alert.alert('Success', `Successfully ${isBuying ? 'purchased' : 'sold'} ${quantity} units of ${selectedAsset.ticker}.`);
+      Alert.alert('Trade Executed', `${isBuying ? 'Bought' : 'Sold'} ${quantity} units at $${livePrice.toLocaleString()}`);
     } catch (e) {
-      Alert.alert('System Error', 'Failed to record transaction.');
+      Alert.alert('Sync Error', 'Firebase connection lost.');
     }
   };
 
   const renderMarketItem = ({ item }: { item: any }) => {
     const holding = holdings.find(h => h.ticker === item.ticker);
+    const live = marketPrices[item.ticker] || FALLBACK_PRICES[item.ticker];
     return (
       <Pressable 
         onPress={() => setSelectedAsset(item)}
         style={({ pressed }) => [styles.assetRow, pressed && { opacity: 0.7 }]}
       >
-        <AssetLogo ticker={item.ticker} type={item.type} domain={item.domain} emoji={item.emoji} />
+        <AssetLogo ticker={item.ticker} type={item.type} domain={item.domain} />
         <View style={styles.assetInfo}>
           <Text style={styles.assetTicker}>{item.ticker}</Text>
           <Text style={styles.assetName}>{item.name}</Text>
         </View>
         <View style={styles.assetMetrics}>
-          <Text style={styles.assetPrice}>${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-          {holding ? (
-            <Text style={styles.assetOwned}>{holding.quantity.toFixed(2)} owned</Text>
-          ) : (
-            <Text style={styles.assetType}>{item.type.toUpperCase()}</Text>
-          )}
+          <Text style={styles.assetPrice}>${live.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {live.change >= 0 ? <TrendingUp size={10} color="#34C759" /> : <TrendingDown size={10} color="#FF3B30" />}
+            <Text style={[styles.assetChange, { color: live.change >= 0 ? '#34C759' : '#FF3B30' }]}>
+              {live.change >= 0 ? '+' : ''}{live.change.toFixed(2)}%
+            </Text>
+          </View>
         </View>
         <ChevronRight size={16} color="#94A3B8" />
       </Pressable>
@@ -248,7 +298,13 @@ export default function PortfolioScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); fetchMarketData(); }} />
+        }
+      >
         
         {/* WEALTH DASHBOARD */}
         <View style={styles.header}>
@@ -286,7 +342,7 @@ export default function PortfolioScreen() {
           <View style={styles.cashRow}>
             <View style={styles.cashLabelGroup}>
               <Wallet size={16} color="#64748B" />
-              <Text style={styles.cashLabel}>Mock Cash Balance</Text>
+              <Text style={styles.cashLabel}>Trading Power</Text>
             </View>
             <Text style={styles.cashValue}>${cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
           </View>
@@ -294,11 +350,14 @@ export default function PortfolioScreen() {
 
         {/* MARKET ASSETS LIST */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>MARKET QUOTES</Text>
-          <Text style={styles.sectionAction}>View All</Text>
+          <Text style={styles.sectionTitle}>LIVE MARKET DATA</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="broadcast" size={14} color="#6366F1" style={{ marginRight: 4 }} />
+            <Text style={styles.sectionAction}>Active</Text>
+          </View>
         </View>
 
-        {MARKET_ASSETS.map((asset) => (
+        {BASELINE_ASSETS.map((asset) => (
           <React.Fragment key={asset.ticker}>
             {renderMarketItem({ item: asset })}
           </React.Fragment>
@@ -306,7 +365,7 @@ export default function PortfolioScreen() {
 
         <View style={styles.infoFooter}>
           <Info size={14} color="#94A3B8" />
-          <Text style={styles.infoFooterText}>Prices are simulated for training purposes. This is not a real financial account.</Text>
+          <Text style={styles.infoFooterText}>Market prices provided by Finnhub & CoinGecko. Portfolio values are simulated for training.</Text>
         </View>
       </ScrollView>
 
@@ -316,10 +375,12 @@ export default function PortfolioScreen() {
           <View style={styles.tradeContainer}>
             <View style={styles.tradeHeader}>
               <View style={styles.tradeAssetInfo}>
-                <AssetLogo ticker={selectedAsset?.ticker} type={selectedAsset?.type} domain={selectedAsset?.domain} emoji={selectedAsset?.emoji} />
+                <AssetLogo ticker={selectedAsset?.ticker} type={selectedAsset?.type} domain={selectedAsset?.domain} />
                 <View style={{ marginLeft: 12 }}>
                   <Text style={styles.tradeTicker}>{selectedAsset?.ticker}</Text>
-                  <Text style={styles.tradePrice}>${selectedAsset?.price.toLocaleString()}</Text>
+                  <Text style={styles.tradePrice}>
+                    ${(marketPrices[selectedAsset?.ticker]?.price || FALLBACK_PRICES[selectedAsset?.ticker]?.price || 0).toLocaleString()}
+                  </Text>
                 </View>
               </View>
               <Pressable onPress={() => { setSelectedAsset(null); setTradeAmount(''); }} style={styles.closeBtn}>
@@ -343,7 +404,7 @@ export default function PortfolioScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Enter Units</Text>
+              <Text style={styles.inputLabel}>Enter Order Quantity</Text>
               <TextInput
                 style={styles.tradeInput}
                 placeholder="0.00"
@@ -353,18 +414,18 @@ export default function PortfolioScreen() {
                 placeholderTextColor="#94A3B8"
               />
               <View style={styles.inputEstimate}>
-                <Text style={styles.estLabel}>ESTIMATED {isBuying ? 'COST' : 'PROCEEDS'}</Text>
+                <Text style={styles.estLabel}>ESTIMATED {isBuying ? 'OUTFLOW' : 'INFLOW'}</Text>
                 <Text style={styles.estValue}>
-                  ${(parseFloat(tradeAmount || '0') * (selectedAsset?.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ${(parseFloat(tradeAmount || '0') * (marketPrices[selectedAsset?.ticker]?.price || FALLBACK_PRICES[selectedAsset?.ticker]?.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
 
             <Pressable 
               onPress={handleTrade}
-              style={[styles.executeBtn, { backgroundColor: isBuying ? '#111827' : '#111827' }]}
+              style={[styles.executeBtn, { backgroundColor: '#111827' }]}
             >
-              <Text style={styles.executeBtnText}>Execute Transaction</Text>
+              <Text style={styles.executeBtnText}>Execute Paper Trade</Text>
               <Zap size={18} color="#FFF" fill="#FFF" style={{ marginLeft: 8 }} />
             </Pressable>
           </View>
@@ -508,9 +569,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   sectionAction: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: '#6366F1',
+    textTransform: 'uppercase',
   },
   assetRow: {
     flexDirection: 'row',
@@ -569,15 +631,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
   },
-  assetType: {
-    fontSize: 10,
+  assetChange: {
+    fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
-  },
-  assetOwned: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#6366F1',
+    marginLeft: 2,
   },
   infoFooter: {
     flexDirection: 'row',
