@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LucideIcon } from 'lucide-react-native';
 
 export interface Slide {
   id: string;
@@ -13,7 +13,7 @@ export interface Course {
   course_id: string;
   title: string;
   chapter: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconName: string; // Used for Lucide icons
   color: string;
   slides: Slide[];
 }
@@ -27,7 +27,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '1',
     title: 'Foundations of Technical Analysis',
     chapter: 'Technical Analysis',
-    icon: 'chart-bar',
+    iconName: 'BarChart3',
     color: '#34C759',
     slides: [
       { 
@@ -74,7 +74,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '2',
     title: 'Psychology of Risk Management',
     chapter: 'Risk Management',
-    icon: 'shield-check',
+    iconName: 'ShieldCheck',
     color: '#0EA5E9',
     slides: [
       { 
@@ -121,7 +121,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '3',
     title: 'Crypto vs. Traditional Assets',
     chapter: 'Crypto Mechanics',
-    icon: 'lightning-bolt',
+    iconName: 'Zap',
     color: '#F59E0B',
     slides: [
       { 
@@ -168,7 +168,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '4',
     title: 'Volume & Liquidity Outflows',
     chapter: 'Technical Analysis',
-    icon: 'waves',
+    iconName: 'Waves',
     color: '#8B5CF6',
     slides: [
       { 
@@ -215,7 +215,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '5',
     title: 'Chart Pattern Architecture',
     chapter: 'Technical Analysis',
-    icon: 'view-dashboard',
+    iconName: 'LayoutDashboard',
     color: '#EC4899',
     slides: [
       { 
@@ -262,7 +262,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '6',
     title: 'Advanced Stop-Loss Automation',
     chapter: 'Risk Management',
-    icon: 'cog',
+    iconName: 'Settings',
     color: '#6366F1',
     slides: [
       { 
@@ -309,7 +309,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '7',
     title: 'The Whale Tracker',
     chapter: 'Market Mechanics',
-    icon: 'eye',
+    iconName: 'Eye',
     color: '#14B8A6',
     slides: [
       { 
@@ -356,7 +356,7 @@ export const ACADEMY_COURSES: Course[] = [
     course_id: '8',
     title: 'Volatility Handles',
     chapter: 'Risk Management',
-    icon: 'pulse',
+    iconName: 'Activity',
     color: '#F97316',
     slides: [
       { 
@@ -400,3 +400,4 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   }
 ];
+
