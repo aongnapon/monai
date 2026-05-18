@@ -116,5 +116,4 @@ export const MARKET_CRYPTOS: CryptoAsset[] = [
   { id: 'thorchain', ticker: 'RUNE', name: 'THORChain', fallbackEmoji: '⚡' },
   { id: 'aave', ticker: 'AAVE', name: 'Aave', fallbackEmoji: '👻' },
   { id: 'flow', ticker: 'FLOW', name: 'Flow', fallbackEmoji: '🌊' },
-  { id: 'blockstack', ticker: 'STX', name: 'Blockstack', fallbackEmoji: '📚' },
 ];

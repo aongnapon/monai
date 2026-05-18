@@ -383,7 +383,7 @@ export default function PortfolioScreen() {
         </View>
 
         {filteredAssets.map((asset) => (
-          <React.Fragment key={asset.ticker}>
+          <React.Fragment key={`${asset.type}-${asset.ticker}`}>
             {renderMarketItem({ item: asset })}
           </React.Fragment>
         ))}
