@@ -20,11 +20,12 @@ LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const NODE_SIZE = 140; 
-const MASCOT_SIZE = 250; 
+// PERFECTED SCALING CONSTANTS
+const NODE_SIZE = 110; 
+const MASCOT_SIZE = 180; 
+const ROW_HEIGHT = 160;
 
 export default function LearnScreen() {
-  // ATOMIC STATE: Progress tracking and interaction logic
   const [completedCourseIds, setCompletedCourseIds] = useState<string[]>(['1']);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -39,11 +40,6 @@ export default function LearnScreen() {
   const lives = 5;
   const streak = 12;
 
-  /**
-   * TWO-TAP INTERACTION LOGIC
-   * 1st Tap: Show floating title label
-   * 2nd Tap: Launch module
-   */
   const handleNodePress = (course: Course) => {
     if (pressedNodeId === course.course_id) {
       setPressedNodeId(null);
@@ -100,13 +96,12 @@ export default function LearnScreen() {
     const isFinal = 'isFinal' in course;
     const isPressed = pressedNodeId === course.course_id;
 
-    // Alternating horizontal zigzag offset
-    const isLeft = index % 2 === 0;
-    const translateX = isLeft ? -40 : 40;
+    // Zigzag alignment logic
+    const isLeftAligned = index % 2 === 0;
+    const translateX = isLeftAligned ? -45 : 45;
 
     return (
       <View key={course.course_id} style={styles.nodeRow}>
-        {/* DAY MILESTONE MARKERS */}
         {!isFinal && (
           <View style={styles.milestoneContainer}>
             <Text style={styles.milestoneLabel}>DAY</Text>
@@ -115,7 +110,7 @@ export default function LearnScreen() {
         )}
 
         <View style={[styles.nodeWrapper, { transform: [{ translateX }] }]}>
-          {/* FLOATING TITLE LABEL (Visible on First Tap) */}
+          {/* FLOATING LABEL: Positioned to avoid blocking mascot or node */}
           {isPressed && (
             <View style={styles.floatingLabel}>
               <Text style={styles.floatingLabelText}>{course.title}</Text>
@@ -123,7 +118,6 @@ export default function LearnScreen() {
             </View>
           )}
 
-          {/* MAIN ARCADE NODE */}
           <Pressable
             onPress={() => !isLocked && !isFinal && handleNodePress(course as Course)}
             style={({ pressed }) => [
@@ -136,22 +130,22 @@ export default function LearnScreen() {
             ]}
           >
             {isFinal ? (
-              <MaterialCommunityIcons name="treasure-chest" size={75} color={isLocked ? '#A0A0A0' : '#8B4513'} />
+              <MaterialCommunityIcons name="treasure-chest" size={55} color={isLocked ? '#A0A0A0' : '#8B4513'} />
             ) : isCompleted ? (
-              <MaterialCommunityIcons name="check-bold" size={70} color="#FFF" />
+              <MaterialCommunityIcons name="check-bold" size={50} color="#FFF" />
             ) : isActive ? (
-              <MaterialCommunityIcons name="star" size={70} color="#FFF" />
+              <MaterialCommunityIcons name="star" size={50} color="#FFF" />
             ) : (
-              <MaterialCommunityIcons name="lock" size={60} color="#A0A0A0" />
+              <MaterialCommunityIcons name="lock" size={45} color="#A0A0A0" />
             )}
           </Pressable>
 
-          {/* DYNAMIC MASCOT POSITIONING */}
+          {/* MASCOT: Positioned strictly to the side to avoid any overlap */}
           {isActive && (
-            <View style={[styles.mascotContainer, isLeft ? styles.mascotOnRight : styles.mascotOnLeft]}>
+            <View style={[styles.mascotContainer, isLeftAligned ? styles.mascotOnRight : styles.mascotOnLeft]}>
               <Image
                 source={require('../../assets/images/mascots/bear.png')}
-                style={[styles.trailMascot, !isLeft && { transform: [{ scaleX: -1 }] }]}
+                style={[styles.trailMascot, !isLeftAligned && { transform: [{ scaleX: -1 }] }]}
               />
             </View>
           )}
@@ -162,7 +156,6 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* GAMIFIED STAT TRACKING HEADER */}
       <View style={styles.header}>
         <View style={styles.statChip}>
           <MaterialCommunityIcons name="trophy-variant" size={24} color="#FFC800" />
@@ -184,13 +177,10 @@ export default function LearnScreen() {
       >
         <View style={styles.trailContainer}>
           {ACADEMY_COURSES.map((course, index) => renderTrailNode(course, index))}
-          
-          {/* FINAL REWARD NODE */}
-          {renderTrailNode({ course_id: 'final', title: 'Ultimate Reward', isFinal: true }, ACADEMY_COURSES.length)}
+          {renderTrailNode({ course_id: 'final', title: 'Institutional Reward', isFinal: true }, ACADEMY_COURSES.length)}
         </View>
       </ScrollView>
 
-      {/* LESSON MODAL OVERLAY */}
       <Modal visible={!!selectedCourse} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={[styles.lessonStage, { backgroundColor: selectedCourse?.color || '#5865F2' }]}>
@@ -237,49 +227,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 18,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 3,
-    borderBottomColor: '#E5E5E5',
-    elevation: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F0F0F0',
+    elevation: 2,
   },
   statChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: '#4B4B4B',
   },
   scrollContent: {
-    paddingBottom: 150,
+    paddingBottom: 120,
   },
   trailContainer: {
-    paddingTop: 40,
+    paddingTop: 30,
     alignItems: 'center',
   },
   nodeRow: {
     width: SCREEN_WIDTH,
-    height: 220,
+    height: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
   },
   milestoneContainer: {
     position: 'absolute',
     left: 20,
     alignItems: 'center',
+    zIndex: 1,
   },
   milestoneLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
-    color: '#BDBDBD',
+    color: '#D0D0D0',
     letterSpacing: 1,
   },
   milestoneValue: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#4B4B4B',
+    color: '#777777',
   },
   nodeWrapper: {
     flex: 1,
@@ -293,12 +284,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 10,
+    borderBottomWidth: 8,
     borderBottomColor: 'rgba(0,0,0,0.1)',
-    elevation: 10,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   nodeBadgeCompleted: {
     backgroundColor: '#58CC02',
@@ -307,14 +298,11 @@ const styles = StyleSheet.create({
   nodeBadgeActive: {
     backgroundColor: '#CE82FF',
     borderBottomColor: '#A568CC',
-    shadowColor: '#CE82FF',
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
   },
   nodeBadgeLocked: {
     backgroundColor: '#E5E5E5',
     borderBottomColor: '#D0D0D0',
-    opacity: 0.8,
+    opacity: 0.6,
   },
   nodeBadgeFinal: {
     backgroundColor: '#FFD700',
@@ -322,52 +310,52 @@ const styles = StyleSheet.create({
   },
   floatingLabel: {
     position: 'absolute',
-    top: -75,
+    top: -85,
     backgroundColor: '#4B4B4B',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
     zIndex: 1000,
-    minWidth: 180,
+    minWidth: 160,
     alignItems: 'center',
-    elevation: 10,
+    elevation: 6,
   },
   floatingLabelText: {
     color: '#FFF',
-    fontWeight: '900',
-    fontSize: 15,
+    fontWeight: '800',
+    fontSize: 14,
     textAlign: 'center',
   },
   labelArrow: {
     position: 'absolute',
-    bottom: -10,
+    bottom: -8,
     width: 0,
     height: 0,
-    borderLeftWidth: 10,
+    borderLeftWidth: 8,
     borderLeftColor: 'transparent',
-    borderRightWidth: 10,
+    borderRightWidth: 8,
     borderRightColor: 'transparent',
-    borderTopWidth: 10,
+    borderTopWidth: 8,
     borderTopColor: '#4B4B4B',
   },
   mascotContainer: {
     position: 'absolute',
     width: MASCOT_SIZE,
     height: MASCOT_SIZE,
-    zIndex: -1,
+    zIndex: 0, // Ensure it's separate but can be seen
   },
   mascotOnLeft: {
-    right: NODE_SIZE * 0.75,
+    right: NODE_SIZE * 0.9,
   },
   mascotOnRight: {
-    left: NODE_SIZE * 0.75,
+    left: NODE_SIZE * 0.9,
   },
   trailMascot: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
   },
-  // SLIDE MODAL STYLES
+  // LESSON SLIDE VIEWER STYLES
   modalBackdrop: {
     flex: 1,
   },
@@ -377,29 +365,33 @@ const styles = StyleSheet.create({
   lessonTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 24,
-    gap: 15,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    gap: 12,
   },
   progressBarBg: {
     flex: 1,
-    height: 18,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    borderRadius: 10,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 7,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 7,
   },
   exitBtn: {
     padding: 4,
   },
   slideFrame: {
     width: SCREEN_WIDTH,
-    padding: 35,
+    paddingHorizontal: 30,
+    paddingTop: 10,
+    paddingBottom: 40,
     justifyContent: 'space-between',
-    paddingBottom: 60,
+    flex: 1,
   },
   slideContent: {
     flex: 1,
@@ -407,9 +399,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   slideMascotContainer: {
-    marginBottom: 20,
-    width: 240,
-    height: 240,
+    marginBottom: 15,
+    width: 150, // Downsized significantly to prevent overlap
+    height: 150,
   },
   slideMascot: {
     width: '100%',
@@ -417,41 +409,37 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   slideEmoji: {
-    fontSize: 90,
-    marginBottom: 25,
+    fontSize: 70,
+    marginBottom: 15,
   },
   slideHighlight: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '900',
     color: '#FFF',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   slideBody: {
-    fontSize: 22,
+    fontSize: 18,
     color: '#FFF',
     textAlign: 'center',
-    lineHeight: 32,
+    lineHeight: 26,
     fontWeight: '700',
   },
   slideActionBtn: {
     backgroundColor: '#FFF',
-    paddingVertical: 22,
-    borderRadius: 24,
+    paddingVertical: 18,
+    borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    elevation: 4,
   },
   slideActionText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
     color: '#4B4B4B',
-    marginRight: 12,
+    marginRight: 10,
   },
 });
