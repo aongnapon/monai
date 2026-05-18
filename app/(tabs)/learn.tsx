@@ -10,74 +10,20 @@ import {
   Text,
   View,
   LogBox,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   ChevronRight, 
-  BookOpen, 
   BrainCircuit, 
-  BarChart4, 
-  CheckCircle2, 
   X,
   ArrowRight,
-  TrendingUp,
-  ShieldCheck,
-  Zap
 } from 'lucide-react-native';
+import { ACADEMY_COURSES, Course, Slide } from '../../src/data/coursesData';
 
 // Task 1: Permanently kill 'topSvgLayout' crashes
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-/**
- * PRODUCTION DATA: Institutional Learning Modules
- */
-const COURSES = [
-  {
-    id: '1',
-    title: 'Foundations of Technical Analysis',
-    subtitle: 'Master S&R and Market Structure',
-    icon: BarChart4,
-    color: '#34C759',
-    slides: [
-      { id: '1-1', emoji: '📈', title: 'The Architect\'s Eye', body: 'Welcome to the world of institutional charting. Technical Analysis is the study of human behavior mapped through price.', mascot: true },
-      { id: '1-2', emoji: '🛡️', title: 'Support & Resistance', body: 'Think of Support as a floor and Resistance as a ceiling. These are zones where big players have parked their orders.' },
-      { id: '1-3', emoji: '⛰️', title: 'Market Trends', body: 'Higher Highs and Higher Lows signal an Uptrend. Lower Highs and Lower Lows signal a Downtrend. Never fight the flow.' },
-      { id: '1-4', emoji: '🕯️', title: 'Candlestick Anatomy', body: 'A single candle tells a story of a battle between Bulls and Bears. The "wick" shows price rejection, the "body" shows dominance.' },
-      { id: '1-5', emoji: '💎', title: 'Module Certified', body: 'You now possess the foundational vision to read the charts. Great work, Architect!', mascot: true, celebration: true },
-    ]
-  },
-  {
-    id: '2',
-    title: 'Psychology of Risk Management',
-    subtitle: 'Protecting Your Capital Capital',
-    icon: ShieldCheck,
-    color: '#0EA5E9',
-    slides: [
-      { id: '2-1', emoji: '🧠', title: 'The Quant Mindset', body: 'Trading isn\'t about being right; it\'s about being profitable. Risk management is the only holy grail in this market.', mascot: true },
-      { id: '2-2', emoji: '🛑', title: 'Strategic Stop Losses', body: 'A Stop Loss is your insurance. It marks the point where your trade idea is proven wrong. Respect it like a law.' },
-      { id: '2-3', emoji: '⚖️', title: 'Position Sizing', body: 'Never risk more than 1-2% of your total account on a single idea. Survivability is the key to institutional growth.' },
-      { id: '2-4', emoji: '🎯', title: 'The R:R Ratio', body: 'Target at least 2:1. If you risk ₩100 to make ₩200, you only need to be right 34% of the time to break even.' },
-      { id: '2-5', emoji: '🏆', title: 'Risk Disciplined', body: 'You are no longer a gambler; you are a risk manager. The pink bear is proud of your discipline!', mascot: true, celebration: true },
-    ]
-  },
-  {
-    id: '3',
-    title: 'Crypto vs. Traditional Assets',
-    subtitle: 'Understanding Volatility Handles',
-    icon: Zap,
-    color: '#F59E0B',
-    slides: [
-      { id: '3-1', emoji: '🌐', title: 'Global Liquidity', body: 'Markets are interconnected. Gold is the ancient shield, while Bitcoin is the digital lightning.', mascot: true },
-      { id: '3-2', emoji: '🔄', title: 'Market Cycles', body: 'Traditional markets move in years. Crypto moves in weeks. The cycles are faster, but the principles of supply remain identical.' },
-      { id: '3-3', emoji: '🌪️', title: 'Volatility Handles', body: 'Volatility is not risk; it\'s opportunity. Institutional players use volatility to enter positions at better price points.' },
-      { id: '3-4', emoji: '💧', title: 'Liquidity Basics', body: 'Liquidity is the lifeblood of a market. High liquidity means stable prices; low liquidity leads to "gaps" and slippage.' },
-      { id: '3-5', emoji: '🌟', title: 'Asset Expert', body: 'You now understand the bridge between old world gold and new world code. Knowledge is power!', mascot: true, celebration: true },
-    ]
-  }
-];
 
 const ProgressBar = ({ total, current }: { total: number, current: number }) => (
   <View style={styles.progressContainer}>
@@ -94,11 +40,11 @@ const ProgressBar = ({ total, current }: { total: number, current: number }) => 
 );
 
 export default function LearnScreen() {
-  const [selectedCourse, setSelectedCourse] = useState<typeof COURSES[0] | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  const startCourse = (course: typeof COURSES[0]) => {
+  const startCourse = (course: Course) => {
     setSelectedCourse(course);
     setActiveSlide(0);
   };
@@ -113,21 +59,23 @@ export default function LearnScreen() {
     }
   };
 
-  const renderSlide = ({ item, index }: { item: any, index: number }) => (
+  const renderSlide = ({ item, index }: { item: Slide, index: number }) => (
     <View style={styles.slideFrame}>
       <View style={styles.slideContent}>
-        {item.mascot && (
+        {item.showMascot && (
           <View style={styles.slideMascotContainer}>
             <Image 
               source={require('../../assets/images/mascots/bear.png')} 
-              style={item.celebration ? styles.mascotCelebration : styles.mascotWelcome} 
+              style={item.mascotAnimation === 'celebrate' ? styles.mascotCelebration : styles.mascotWelcome} 
             />
           </View>
         )}
         
         <Text style={styles.slideEmoji}>{item.emoji}</Text>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideBody}>{item.body}</Text>
+        {item.highlightText && (
+          <Text style={styles.slideHighlight}>{item.highlightText}</Text>
+        )}
+        <Text style={styles.slideBody}>{item.text}</Text>
       </View>
 
       <Pressable onPress={nextSlide} style={styles.slideActionBtn}>
@@ -140,7 +88,7 @@ export default function LearnScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges = {['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View>
@@ -163,9 +111,9 @@ export default function LearnScreen() {
 
         <Text style={styles.sectionTitle}>AVAILABLE MODULES</Text>
 
-        {COURSES.map((course) => (
+        {ACADEMY_COURSES.map((course) => (
           <Pressable 
-            key={course.id} 
+            key={course.course_id} 
             onPress={() => startCourse(course)}
             style={({ pressed }) => [styles.courseCard, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
           >
@@ -175,7 +123,7 @@ export default function LearnScreen() {
             </View>
             <View style={styles.courseInfo}>
               <Text style={styles.courseTitle}>{course.title}</Text>
-              <Text style={styles.courseSubtitle}>{course.subtitle}</Text>
+              <Text style={styles.courseSubtitle}>{course.chapter}</Text>
             </View>
             <ChevronRight size={20} color="#94A3B8" />
           </Pressable>
@@ -389,12 +337,14 @@ const styles = StyleSheet.create({
     fontSize: 64,
     marginBottom: 24,
   },
-  slideTitle: {
-    fontSize: 32,
+  slideHighlight: {
+    fontSize: 22,
     fontWeight: '900',
     color: '#FFF',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   slideBody: {
     fontSize: 18,
