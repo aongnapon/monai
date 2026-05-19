@@ -13,13 +13,14 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import {
   Activity,
-  CandlestickChart,
   CheckCircle2,
   CloudOff,
   Database,
   Scan,
+  XCircle,
   ShieldCheck,
-  Target
+  Target,
+  CandlestickChart
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -55,7 +56,7 @@ const model = genAI.getGenerativeModel({
 });
 
 /**
- * SCALABLE SCANNER TOOLS CONFIGURATION
+ * TWIN SCANNER MODULE CONFIGURATION
  */
 const SCAN_TOOLS = [
   {
@@ -99,7 +100,7 @@ export default function ScanScreen() {
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisRecord | null>(null);
 
   /**
-   * SECURE FIRESTORE HYDRATION LISTENER
+   * REAL-TIME SYNCHRONIZATION
    */
   useEffect(() => {
     if (!user) return;
@@ -127,17 +128,26 @@ export default function ScanScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const toggleResult = (record: AnalysisRecord | null) => {
+  /**
+   * HANDLER: SELECT RECORD (FIXES ReferenceError)
+   * Directly routes item payload to dashboard state and switches tabs.
+   */
+  const handleSelectRecord = (record: AnalysisRecord) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveAnalysis(record);
-    if (record) {
-      // Ensure we switch view to see the dashboard if coming from history
-      // (Scroll to top logic could be added here if needed)
-    }
+    setActiveTab('scan'); // Automatically switch to scanner view to see the report
   };
 
   /**
-   * CORE MULTI-MODAL SCAN EXECUTION
+   * HANDLER: DISMISS ANALYSIS
+   */
+  const closeAnalysis = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setActiveAnalysis(null);
+  };
+
+  /**
+   * EXECUTE MULTI-MODAL SCAN
    */
   const executeScan = async () => {
     if (!API_KEY) {
@@ -159,36 +169,30 @@ export default function ScanScreen() {
     const localUri = pickerResult.assets[0].uri;
 
     setIsScanning(true);
-    toggleResult(null);
+    closeAnalysis();
 
     try {
       const prompt = `
-        You are a Senior Multi-Modal Financial AI Architect. Analyze this financial chart image focusing specifically on ${selectedTool.focus}.
-        Return a strictly structured JSON object.
-        NO MARKDOWN CODE BLOCKS. NO EXTRA TEXT. JUST THE JSON.
-
+        Analyze this chart for ${selectedTool.focus}.
+        Return STRICT JSON. NO MARKDOWN.
         {
-          "reportTitle": "Clear title of the asset analysis",
-          "reportTimestamp": "Current date",
+          "reportTitle": "Title",
+          "reportTimestamp": "Date",
           "overallTrend": "Bullish" | "Bearish" | "Neutral",
-          "levelsSupport": "Comma separated support levels",
-          "levelsResistance": "Comma separated resistance levels",
-          "sentimentScore": "e.g. Neutral (3/5)",
-          "confidenceScore": "e.g. 75%",
-          "markdownSummary": "Detailed markdown analysis block"
+          "levelsSupport": "Prices",
+          "levelsResistance": "Prices",
+          "sentimentScore": "e.g. 4/5",
+          "confidenceScore": "e.g. 80%",
+          "markdownSummary": "Full Analysis"
         }
       `;
 
-      const imagePart = {
-        inlineData: {
-          data: base64Data!,
-          mimeType: "image/jpeg",
-        },
-      };
-
-      const result = await model.generateContent([prompt, imagePart]);
-      const responseText = result.response.text().trim();
+      const result = await model.generateContent([
+        prompt,
+        { inlineData: { data: base64Data!, mimeType: "image/jpeg" } },
+      ]);
       
+      const responseText = result.response.text().trim();
       const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedData = JSON.parse(cleanedJson);
 
@@ -197,7 +201,7 @@ export default function ScanScreen() {
         userEmail: user.email,
         timestamp: Timestamp.now(),
         ...parsedData,
-        imageUri: localUri, // PERSIST IMAGE URI TO FIRESTORE
+        imageUri: localUri,
       };
 
       const docRef = await addDoc(collection(firebaseDb, 'user_analyses_v2'), docData);
@@ -207,18 +211,18 @@ export default function ScanScreen() {
         ...docData
       };
 
-      toggleResult(newRecord);
+      setActiveAnalysis(newRecord);
 
     } catch (error) {
       console.error("[Gemini] API Failure:", error);
-      Alert.alert("Analysis Error", "Failed to parse chart data. Please try a clearer image.");
+      Alert.alert("Analysis Error", "Processing failed. Please try again.");
     } finally {
       setIsScanning(false);
     }
   };
 
   /**
-   * PURE NATIVE VISUALIZATION COMPONENTS (ZERO DEPENDENCY)
+   * PURE NATIVE VISUALIZERS
    */
   const renderCircularGauge = (score: string) => {
     const percentage = parseInt(score) || 50;
@@ -233,19 +237,14 @@ export default function ScanScreen() {
   };
 
   const renderSentimentBar = (score: string) => {
-    const match = score.match(/(\d+)\/(\d+)/);
-    const value = match ? parseInt(match[1]) : 3;
-    const max = match ? parseInt(match[2]) : 5;
-
+    const match = score.match(/(\d+)/);
+    const value = match ? parseInt(match[0]) : 3;
     return (
       <View style={styles.sentimentBarContainer}>
         {[1, 2, 3, 4, 5].map((step) => (
           <View 
             key={step} 
-            style={[
-              styles.sentimentStep, 
-              { backgroundColor: step <= value ? '#CE82FF' : '#F0F0F0' }
-            ]} 
+            style={[styles.sentimentStep, { backgroundColor: step <= value ? '#CE82FF' : '#F0F0F0' }]} 
           />
         ))}
         <Text style={styles.barEmoji}>⚖️</Text>
@@ -256,7 +255,7 @@ export default function ScanScreen() {
   const renderMiniLine = () => (
     <View style={styles.miniLineContainer}>
       <View style={styles.lineSegment} />
-      <View style={[styles.lineSegment, { transform: [{ translateY: -5 }] }]} />
+      <View style={[styles.lineSegment, { transform: [{ translateY: -4 }] }]} />
       <View style={[styles.lineSegment, { transform: [{ translateY: -10 }] }]} />
       <View style={[styles.lineSegment, { transform: [{ translateY: -2 }] }]} />
       <View style={styles.lineDot} />
@@ -264,7 +263,7 @@ export default function ScanScreen() {
   );
 
   /**
-   * DASHBOARD MODULE HYDRATION & VIEW
+   * PREMIUM DASHBOARD OVERVIEW
    */
   const renderDashboard = (record: AnalysisRecord) => {
     const isBullish = record.overallTrend === 'Bullish';
@@ -273,11 +272,15 @@ export default function ScanScreen() {
     return (
       <View style={styles.dashboardContainer}>
         <View style={styles.reportHeader}>
-          <Text style={styles.reportBanner}>FINELO AI REPORT INSIGHTS</Text>
-          <Text style={styles.reportDate}>{record.reportTimestamp || (record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : '')}</Text>
+          <View>
+            <Text style={styles.reportBanner}>FINELO AI REPORT INSIGHTS</Text>
+            <Text style={styles.reportDate}>{record.reportTimestamp || 'SYNCHRONIZED DATA'}</Text>
+          </View>
+          <Pressable onPress={closeAnalysis} style={styles.topCloseBtn}>
+            <XCircle color="#A0A0A0" size={24} />
+          </Pressable>
         </View>
 
-        {/* HYDRATED IMAGE PREVIEW */}
         {record.imageUri && (
           <View style={styles.imagePreviewFrame}>
             <Image source={{ uri: record.imageUri }} style={styles.imagePreview} />
@@ -337,7 +340,7 @@ export default function ScanScreen() {
           </ScrollView>
         </View>
 
-        <Pressable onPress={() => toggleResult(null)} style={styles.dismissBtn}>
+        <Pressable onPress={closeAnalysis} style={styles.dismissBtn}>
           <Text style={styles.dismissText}>Close Report</Text>
         </Pressable>
       </View>
@@ -347,10 +350,16 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.tabNav}>
-        <Pressable onPress={() => setActiveTab('scan')} style={[styles.tab, activeTab === 'scan' && styles.tabActive]}>
+        <Pressable 
+          onPress={() => { setActiveTab('scan'); closeAnalysis(); }} 
+          style={[styles.tab, activeTab === 'scan' && styles.tabActive]}
+        >
           <Text style={[styles.tabLabel, activeTab === 'scan' && styles.tabLabelActive]}>AI Scanner</Text>
         </Pressable>
-        <Pressable onPress={() => setActiveTab('history')} style={[styles.tab, activeTab === 'history' && styles.tabActive]}>
+        <Pressable 
+          onPress={() => setActiveTab('history')} 
+          style={[styles.tab, activeTab === 'history' && styles.tabActive]}
+        >
           <Text style={[styles.tabLabel, activeTab === 'history' && styles.tabLabelActive]}>Records</Text>
         </Pressable>
       </View>
@@ -371,9 +380,7 @@ export default function ScanScreen() {
               </View>
             </View>
 
-            {activeAnalysis && renderDashboard(activeAnalysis)}
-
-            {!activeAnalysis && (
+            {activeAnalysis ? renderDashboard(activeAnalysis) : (
               <>
                 <View style={styles.toolList}>
                   {SCAN_TOOLS.map((tool) => (
@@ -382,7 +389,7 @@ export default function ScanScreen() {
                       onPress={() => setSelectedTool(tool)}
                       style={[
                         styles.toolItem,
-                        selectedTool.id === tool.id && { borderColor: tool.color, backgroundColor: 'transparent' }
+                        selectedTool.id === tool.id && { borderColor: tool.color, backgroundColor: '#FFFFFF' }
                       ]}
                     >
                       <View style={[styles.iconBox, { backgroundColor: tool.color + '15' }]}>
@@ -426,7 +433,7 @@ export default function ScanScreen() {
               <Pressable 
                 key={item.id} 
                 style={styles.logCard}
-                onPress={() => toggleResult(item)}
+                onPress={() => handleSelectRecord(item)} // FIXES ReferenceError
               >
                 <View style={styles.logIconFrame}><Database color="#4B4B4B" size={22} /></View>
                 <View style={styles.logContent}>
@@ -468,11 +475,11 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1, marginLeft: 20 },
   mainTitle: { fontSize: 20, fontWeight: '900', color: '#4B4B4B' },
   subTitle: { fontSize: 12, color: '#A0A0A0', marginTop: 4 },
-  
   dashboardContainer: { marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 32, borderWidth: 1, borderColor: '#F0F0F0', padding: 20, elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, marginBottom: 20 },
-  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 10 },
+  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 10 },
   reportBanner: { fontSize: 10, fontWeight: '900', color: '#007AFF', letterSpacing: 1 },
-  reportDate: { fontSize: 10, color: '#A0A0A0', fontWeight: '700' },
+  reportDate: { fontSize: 10, color: '#A0A0A0', fontWeight: '700', marginTop: 2 },
+  topCloseBtn: { padding: 4 },
   imagePreviewFrame: { width: '100%', height: 180, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EEE', marginBottom: 15 },
   imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
   reportMainTitle: { fontSize: 22, fontWeight: '900', color: '#2D2D2D', marginBottom: 20, textAlign: 'center' },
@@ -503,9 +510,8 @@ const styles = StyleSheet.create({
   summaryTitle: { fontSize: 12, fontWeight: '900', color: '#4B4B4B', letterSpacing: 1 },
   summaryScroll: { maxHeight: 150 },
   summaryBody: { fontSize: 13, color: '#555', lineHeight: 20, fontWeight: '600' },
-  dismissBtn: { marginTop: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: '#F0F0F0', borderRadius: 15 },
+  dismissBtn: { marginTop: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: '#F8F8F8', borderRadius: 15, borderWidth: 1, borderColor: '#EEE' },
   dismissText: { fontSize: 14, fontWeight: '800', color: '#4B4B4B' },
-  
   toolList: { paddingHorizontal: 20 },
   toolItem: { flexDirection: 'row', alignItems: 'center', padding: 18, backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12, borderWidth: 2, borderColor: '#F8F8F8' },
   iconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
@@ -516,7 +522,6 @@ const styles = StyleSheet.create({
   scanActionBtn: { backgroundColor: '#4B4B4B', paddingVertical: 18, borderRadius: 22, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   btnDisabled: { opacity: 0.6 },
   scanBtnText: { color: '#FFF', fontSize: 17, fontWeight: '900' },
-
   historyContainer: { paddingHorizontal: 20 },
   sectionHeader: { fontSize: 10, fontWeight: '900', color: '#D0D0D0', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
   logCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 22, marginBottom: 12, borderWidth: 1, borderColor: '#F0F0F0', elevation: 2 },
