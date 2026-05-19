@@ -1,15 +1,16 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
 import { LogBox } from 'react-native';
 
-// Task 1: Stability Guard
+// Stability Guard
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 /**
  * ARCHITECT NOTE: Institutional Tab Navigation
  * We use a minimalist design with high-contrast active states.
- * Reordered to follow the core user loop: Scan -> History -> Learn -> Portfolio -> Profile.
+ * Reordered to follow the core user loop: Scan -> Academy -> Portfolio -> Profile.
+ * Legacy "History" has been integrated directly into the Scan module.
  */
 export default function TabLayout() {
   return (
@@ -45,18 +46,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 2. HISTORY: Intelligence logs */}
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-
-      {/* 3. LEARN: Intelligence Academy */}
+      {/* 2. LEARN: Intelligence Academy */}
       <Tabs.Screen
         name="learn"
         options={{
@@ -67,7 +57,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 4. PORTFOLIO: Institutional Wealth Suite */}
+      {/* 3. PORTFOLIO: Institutional Wealth Suite */}
       <Tabs.Screen
         name="portfolio"
         options={{
@@ -78,7 +68,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 5. PROFILE: User Settings */}
+      {/* 4. PROFILE: User Settings */}
       <Tabs.Screen
         name="profile"
         options={{
