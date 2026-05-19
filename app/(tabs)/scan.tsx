@@ -13,16 +13,11 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import {
   Activity,
-  AreaChart,
-  BarChart2,
+  CandlestickChart,
   CheckCircle2,
   CloudOff,
   Database,
-  Layout,
   Scan,
-  TrendingDown,
-  TrendingUp,
-  XCircle,
   ShieldCheck,
   Target
 } from 'lucide-react-native';
@@ -59,6 +54,28 @@ const model = genAI.getGenerativeModel({
   systemInstruction: "You are a Senior Multi-Modal Financial AI Architect. Analyze financial charts and return STRICT JSON. No markdown blocks."
 });
 
+/**
+ * SCALABLE SCANNER TOOLS CONFIGURATION
+ */
+const SCAN_TOOLS = [
+  {
+    id: 'patterns',
+    title: 'Technical Pattern Pulse',
+    desc: 'Scan for Candlestick, Breakouts & Channel setups',
+    Icon: CandlestickChart,
+    color: '#CE82FF',
+    focus: 'Japanese candlestick patterns, breakout channels, and geometric price structures'
+  },
+  {
+    id: 'sentiment',
+    title: 'Sentiment Momentum Matrix',
+    desc: 'Score retail enthusiasm, volume trends & whale tracking',
+    Icon: Activity,
+    color: '#CE82FF',
+    focus: 'market sentiment indicators, retail momentum vs institutional flow, and volume-price divergence'
+  }
+];
+
 interface AnalysisRecord {
   id: string;
   reportTitle: string;
@@ -76,10 +93,14 @@ interface AnalysisRecord {
 export default function ScanScreen() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'scan' | 'history'>('scan');
+  const [selectedTool, setSelectedTool] = useState(SCAN_TOOLS[0]);
   const [isScanning, setIsScanning] = useState(false);
   const [history, setHistory] = useState<AnalysisRecord[]>([]);
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisRecord | null>(null);
 
+  /**
+   * SECURE FIRESTORE HYDRATION LISTENER
+   */
   useEffect(() => {
     if (!user) return;
 
@@ -109,8 +130,15 @@ export default function ScanScreen() {
   const toggleResult = (record: AnalysisRecord | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveAnalysis(record);
+    if (record) {
+      // Ensure we switch view to see the dashboard if coming from history
+      // (Scroll to top logic could be added here if needed)
+    }
   };
 
+  /**
+   * CORE MULTI-MODAL SCAN EXECUTION
+   */
   const executeScan = async () => {
     if (!API_KEY) {
       Alert.alert("Error", "Gemini API Key missing.");
@@ -135,7 +163,8 @@ export default function ScanScreen() {
 
     try {
       const prompt = `
-        Analyze this financial chart image and return a strictly structured JSON object.
+        You are a Senior Multi-Modal Financial AI Architect. Analyze this financial chart image focusing specifically on ${selectedTool.focus}.
+        Return a strictly structured JSON object.
         NO MARKDOWN CODE BLOCKS. NO EXTRA TEXT. JUST THE JSON.
 
         {
@@ -160,7 +189,6 @@ export default function ScanScreen() {
       const result = await model.generateContent([prompt, imagePart]);
       const responseText = result.response.text().trim();
       
-      // Attempt to clean JSON if model adds markdown
       const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedData = JSON.parse(cleanedJson);
 
@@ -169,7 +197,7 @@ export default function ScanScreen() {
         userEmail: user.email,
         timestamp: Timestamp.now(),
         ...parsedData,
-        imageUri: localUri,
+        imageUri: localUri, // PERSIST IMAGE URI TO FIRESTORE
       };
 
       const docRef = await addDoc(collection(firebaseDb, 'user_analyses_v2'), docData);
@@ -189,6 +217,9 @@ export default function ScanScreen() {
     }
   };
 
+  /**
+   * PURE NATIVE VISUALIZATION COMPONENTS (ZERO DEPENDENCY)
+   */
   const renderCircularGauge = (score: string) => {
     const percentage = parseInt(score) || 50;
     return (
@@ -202,11 +233,9 @@ export default function ScanScreen() {
   };
 
   const renderSentimentBar = (score: string) => {
-    // Expecting something like "Neutral (3/5)" or just "3/5"
     const match = score.match(/(\d+)\/(\d+)/);
     const value = match ? parseInt(match[1]) : 3;
     const max = match ? parseInt(match[2]) : 5;
-    const height = (value / max) * 100;
 
     return (
       <View style={styles.sentimentBarContainer}>
@@ -234,19 +263,21 @@ export default function ScanScreen() {
     </View>
   );
 
+  /**
+   * DASHBOARD MODULE HYDRATION & VIEW
+   */
   const renderDashboard = (record: AnalysisRecord) => {
     const isBullish = record.overallTrend === 'Bullish';
     const trendColor = isBullish ? '#58CC02' : record.overallTrend === 'Bearish' ? '#FF4B4B' : '#CE82FF';
 
     return (
       <View style={styles.dashboardContainer}>
-        {/* Banner */}
         <View style={styles.reportHeader}>
           <Text style={styles.reportBanner}>FINELO AI REPORT INSIGHTS</Text>
-          <Text style={styles.reportDate}>{record.reportTimestamp || record.timestamp?.toDate().toLocaleDateString()}</Text>
+          <Text style={styles.reportDate}>{record.reportTimestamp || (record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : '')}</Text>
         </View>
 
-        {/* Saved Image Preview */}
+        {/* HYDRATED IMAGE PREVIEW */}
         {record.imageUri && (
           <View style={styles.imagePreviewFrame}>
             <Image source={{ uri: record.imageUri }} style={styles.imagePreview} />
@@ -255,13 +286,12 @@ export default function ScanScreen() {
 
         <Text style={styles.reportMainTitle}>{record.reportTitle}</Text>
 
-        {/* Row 1: Trend & Confidence */}
         <View style={styles.dashboardRow}>
           <View style={styles.dashBox}>
             <Text style={styles.boxLabel}>OVERALL TREND</Text>
             <View style={styles.trendValueContainer}>
               <Text style={styles.trendEmoji}>{isBullish ? '📈' : record.overallTrend === 'Bearish' ? '📉' : '⚖️'}</Text>
-              <Text style={[styles.trendText, { color: trendColor }]}>{record.overallTrend.toUpperCase()}</Text>
+              <Text style={[styles.trendText, { color: trendColor }]}>{record.overallTrend?.toUpperCase()}</Text>
             </View>
           </View>
 
@@ -274,7 +304,6 @@ export default function ScanScreen() {
           </View>
         </View>
 
-        {/* Row 2: Sentiment & Levels */}
         <View style={styles.dashboardRow}>
           <View style={styles.dashBox}>
             <Text style={styles.boxLabel}>SENTIMENT SCORE</Text>
@@ -288,17 +317,16 @@ export default function ScanScreen() {
             <View style={styles.levelsGrid}>
               <View>
                 <Text style={styles.levelType}>RES</Text>
-                <Text style={styles.levelValue}>{record.levelsResistance.split(',')[0]}</Text>
+                <Text style={styles.levelValue}>{record.levelsResistance?.split(',')[0]}</Text>
               </View>
               <View>
                 <Text style={styles.levelType}>SUP</Text>
-                <Text style={styles.levelValue}>{record.levelsSupport.split(',')[0]}</Text>
+                <Text style={styles.levelValue}>{record.levelsSupport?.split(',')[0]}</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Markdown Summary Section */}
         <View style={styles.summaryContainer}>
           <View style={styles.summaryHeader}>
             <Target size={18} color="#4B4B4B" />
@@ -319,16 +347,10 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.tabNav}>
-        <Pressable 
-          onPress={() => setActiveTab('scan')} 
-          style={[styles.tab, activeTab === 'scan' && styles.tabActive]}
-        >
+        <Pressable onPress={() => setActiveTab('scan')} style={[styles.tab, activeTab === 'scan' && styles.tabActive]}>
           <Text style={[styles.tabLabel, activeTab === 'scan' && styles.tabLabelActive]}>AI Scanner</Text>
         </Pressable>
-        <Pressable 
-          onPress={() => setActiveTab('history')} 
-          style={[styles.tab, activeTab === 'history' && styles.tabActive]}
-        >
+        <Pressable onPress={() => setActiveTab('history')} style={[styles.tab, activeTab === 'history' && styles.tabActive]}>
           <Text style={[styles.tabLabel, activeTab === 'history' && styles.tabLabelActive]}>Records</Text>
         </Pressable>
       </View>
@@ -353,10 +375,28 @@ export default function ScanScreen() {
 
             {!activeAnalysis && (
               <>
-                <View style={styles.toolHero}>
-                  <Layout color="#CE82FF" size={48} />
-                  <Text style={styles.heroTitle}>Institutional Dashboard</Text>
-                  <Text style={styles.heroDesc}>Upload a chart to generate a professional analytics report with pattern detection and sentiment scoring.</Text>
+                <View style={styles.toolList}>
+                  {SCAN_TOOLS.map((tool) => (
+                    <Pressable
+                      key={tool.id}
+                      onPress={() => setSelectedTool(tool)}
+                      style={[
+                        styles.toolItem,
+                        selectedTool.id === tool.id && { borderColor: tool.color, backgroundColor: 'transparent' }
+                      ]}
+                    >
+                      <View style={[styles.iconBox, { backgroundColor: tool.color + '15' }]}>
+                        <tool.Icon color={tool.color} size={24} />
+                      </View>
+                      <View style={styles.toolMeta}>
+                        <Text style={styles.toolTitle}>{tool.title}</Text>
+                        <Text style={styles.toolDesc} numberOfLines={1}>{tool.desc}</Text>
+                      </View>
+                      {selectedTool.id === tool.id && (
+                        <CheckCircle2 color={tool.color} size={22} />
+                      )}
+                    </Pressable>
+                  ))}
                 </View>
 
                 <View style={styles.actionZone}>
@@ -365,9 +405,7 @@ export default function ScanScreen() {
                     disabled={isScanning}
                     style={[styles.scanActionBtn, isScanning && styles.btnDisabled]}
                   >
-                    {isScanning ? (
-                      <ActivityIndicator color="#FFF" />
-                    ) : (
+                    {isScanning ? <ActivityIndicator color="#FFF" /> : (
                       <>
                         <Scan color="#FFF" size={26} />
                         <Text style={styles.scanBtnText}>Analyze Now</Text>
@@ -390,19 +428,13 @@ export default function ScanScreen() {
                 style={styles.logCard}
                 onPress={() => toggleResult(item)}
               >
-                <View style={styles.logIconFrame}>
-                  <Database color="#4B4B4B" size={22} />
-                </View>
+                <View style={styles.logIconFrame}><Database color="#4B4B4B" size={22} /></View>
                 <View style={styles.logContent}>
                   <Text style={styles.logTitle}>{item.reportTitle}</Text>
-                  <Text style={styles.logTime}>
-                    {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Processing'}
-                  </Text>
+                  <Text style={styles.logTime}>{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Processing'}</Text>
                 </View>
                 <View style={[styles.pillBadge, { backgroundColor: item.overallTrend === 'Bullish' ? '#58CC0220' : '#FF4B4B20' }]}>
-                  <Text style={[styles.pillText, { color: item.overallTrend === 'Bullish' ? '#58CC02' : '#FF4B4B' }]}>
-                    {(item.overallTrend || 'Neutral').toUpperCase()}
-                  </Text>
+                  <Text style={[styles.pillText, { color: item.overallTrend === 'Bullish' ? '#58CC02' : '#FF4B4B' }]}>{(item.overallTrend || 'Neutral').toUpperCase()}</Text>
                 </View>
               </Pressable>
             ))}
@@ -422,15 +454,7 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  tabNav: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 15,
-    backgroundColor: '#F8F8F8',
-    borderRadius: 18,
-    padding: 6,
-    zIndex: 10,
-  },
+  tabNav: { flexDirection: 'row', marginHorizontal: 20, marginTop: 15, backgroundColor: '#F8F8F8', borderRadius: 18, padding: 6, zIndex: 10 },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 14 },
   tabActive: { backgroundColor: '#FFFFFF', elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   tabLabel: { fontSize: 14, fontWeight: '800', color: '#C0C0C0' },
@@ -445,121 +469,57 @@ const styles = StyleSheet.create({
   mainTitle: { fontSize: 20, fontWeight: '900', color: '#4B4B4B' },
   subTitle: { fontSize: 12, color: '#A0A0A0', marginTop: 4 },
   
-  // Dashboard Styles
-  dashboardContainer: {
-    marginHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    padding: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    marginBottom: 20,
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-    paddingBottom: 10,
-  },
+  dashboardContainer: { marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 32, borderWidth: 1, borderColor: '#F0F0F0', padding: 20, elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, marginBottom: 20 },
+  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 10 },
   reportBanner: { fontSize: 10, fontWeight: '900', color: '#007AFF', letterSpacing: 1 },
   reportDate: { fontSize: 10, color: '#A0A0A0', fontWeight: '700' },
-  imagePreviewFrame: {
-    width: '100%',
-    height: 180,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#EEE',
-    marginBottom: 15,
-  },
+  imagePreviewFrame: { width: '100%', height: 180, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EEE', marginBottom: 15 },
   imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
   reportMainTitle: { fontSize: 22, fontWeight: '900', color: '#2D2D2D', marginBottom: 20, textAlign: 'center' },
   dashboardRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  dashBox: {
-    flex: 1,
-    backgroundColor: '#F9F9FB',
-    borderRadius: 20,
-    padding: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
+  dashBox: { flex: 1, backgroundColor: '#F9F9FB', borderRadius: 20, padding: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F0F0F0' },
   boxLabel: { fontSize: 8, fontWeight: '900', color: '#A0A0A0', letterSpacing: 0.5, marginBottom: 8 },
   trendValueContainer: { alignItems: 'center' },
   trendEmoji: { fontSize: 24, marginBottom: 4 },
   trendText: { fontSize: 14, fontWeight: '900' },
-  
-  // Gauge
   gaugeWrapper: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center' },
   gaugeContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E0E0E0', overflow: 'hidden', justifyContent: 'flex-end' },
   gaugeBackground: { width: '100%', height: '100%', backgroundColor: '#E0E0E0' },
   gaugeFill: { width: '100%', backgroundColor: '#007AFF', position: 'absolute', bottom: 0 },
   gaugeText: { position: 'absolute', fontSize: 9, fontWeight: '900', color: '#2D2D2D' },
   gaugeIcon: { position: 'absolute', bottom: -5, right: -5, backgroundColor: '#FFF', borderRadius: 10, padding: 2 },
-
-  // Sentiment Bar
   sentimentBarContainer: { flexDirection: 'row', gap: 3, alignItems: 'flex-end', height: 25, marginBottom: 5 },
   sentimentStep: { width: 6, height: 20, borderRadius: 2 },
   barEmoji: { fontSize: 14, marginLeft: 5 },
   boxSubText: { fontSize: 10, fontWeight: '700', color: '#4B4B4B' },
-
-  // Mini Line
   miniLineContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, marginBottom: 8 },
   lineSegment: { width: 12, height: 2, backgroundColor: '#007AFF', borderRadius: 1 },
   lineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#007AFF' },
   levelsGrid: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
   levelType: { fontSize: 7, fontWeight: '900', color: '#A0A0A0' },
   levelValue: { fontSize: 11, fontWeight: '800', color: '#2D2D2D' },
-
-  // Summary
   summaryContainer: { marginTop: 15, backgroundColor: '#F9F9FB', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#F0F0F0' },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   summaryTitle: { fontSize: 12, fontWeight: '900', color: '#4B4B4B', letterSpacing: 1 },
   summaryScroll: { maxHeight: 150 },
   summaryBody: { fontSize: 13, color: '#555', lineHeight: 20, fontWeight: '600' },
-  
   dismissBtn: { marginTop: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: '#F0F0F0', borderRadius: 15 },
   dismissText: { fontSize: 14, fontWeight: '800', color: '#4B4B4B' },
-
-  toolHero: { padding: 40, alignItems: 'center' },
-  heroTitle: { fontSize: 24, fontWeight: '900', color: '#4B4B4B', marginTop: 20 },
-  heroDesc: { fontSize: 14, color: '#A0A0A0', textAlign: 'center', marginTop: 10, lineHeight: 22 },
   
+  toolList: { paddingHorizontal: 20 },
+  toolItem: { flexDirection: 'row', alignItems: 'center', padding: 18, backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12, borderWidth: 2, borderColor: '#F8F8F8' },
+  iconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  toolMeta: { flex: 1, marginLeft: 16 },
+  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B' },
+  toolDesc: { fontSize: 12, color: '#A0A0A0', marginTop: 2 },
   actionZone: { paddingHorizontal: 20, marginTop: 10 },
-  scanActionBtn: {
-    backgroundColor: '#4B4B4B',
-    paddingVertical: 18,
-    borderRadius: 22,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
+  scanActionBtn: { backgroundColor: '#4B4B4B', paddingVertical: 18, borderRadius: 22, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   btnDisabled: { opacity: 0.6 },
   scanBtnText: { color: '#FFF', fontSize: 17, fontWeight: '900' },
 
   historyContainer: { paddingHorizontal: 20 },
   sectionHeader: { fontSize: 10, fontWeight: '900', color: '#D0D0D0', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
-  logCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 22,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    elevation: 2,
-  },
+  logCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 22, marginBottom: 12, borderWidth: 1, borderColor: '#F0F0F0', elevation: 2 },
   logIconFrame: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F9F9F9', justifyContent: 'center', alignItems: 'center' },
   logContent: { flex: 1, marginLeft: 15 },
   logTitle: { fontSize: 14, fontWeight: '800', color: '#4B4B4B' },
