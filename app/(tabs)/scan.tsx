@@ -12,15 +12,12 @@ import {
 } from '@react-native-firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  Activity,
   CheckCircle2,
   CloudOff,
-  Database,
   Scan,
   XCircle,
   ShieldCheck,
-  Target,
-  CandlestickChart
+  Target
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -61,24 +58,25 @@ const model = genAI.getGenerativeModel({
 const SCAN_TOOLS = [
   {
     id: 'patterns',
-    title: 'Technical Pattern Pulse',
+    title: 'Federal Reserve Expert Analysis',
     desc: 'Scan for Candlestick, Breakouts & Channel setups',
-    Icon: CandlestickChart,
-    color: '#CE82FF',
+    emoji: '🏛️',
+    color: '#1A365D', // Institutional Navy
     focus: 'Japanese candlestick patterns, breakout channels, and geometric price structures'
   },
   {
     id: 'sentiment',
-    title: 'Sentiment Momentum Matrix',
+    title: 'Bank Expert Analysis',
     desc: 'Score retail enthusiasm, volume trends & whale tracking',
-    Icon: Activity,
-    color: '#CE82FF',
+    emoji: '🏦',
+    color: '#2D3748', // Institutional Slate
     focus: 'market sentiment indicators, retail momentum vs institutional flow, and volume-price divergence'
   }
 ];
 
 interface AnalysisRecord {
   id: string;
+  toolId: string;
   reportTitle: string;
   reportTimestamp: string;
   overallTrend: 'Bullish' | 'Bearish' | 'Neutral';
@@ -199,6 +197,7 @@ export default function ScanScreen() {
       const docData = {
         userId: user.uid,
         userEmail: user.email,
+        toolId: selectedTool.id,
         timestamp: Timestamp.now(),
         ...parsedData,
         imageUri: localUri,
@@ -267,18 +266,39 @@ export default function ScanScreen() {
    */
   const renderDashboard = (record: AnalysisRecord) => {
     const isBullish = record.overallTrend === 'Bullish';
-    const trendColor = isBullish ? '#58CC02' : record.overallTrend === 'Bearish' ? '#FF4B4B' : '#CE82FF';
+    const isBearish = record.overallTrend === 'Bearish';
+    const trendColor = isBullish ? '#58CC02' : isBearish ? '#FF4B4B' : '#CE82FF';
+    
+    const tool = SCAN_TOOLS.find(t => t.id === record.toolId) || (record.reportTitle?.includes('Sentiment') ? SCAN_TOOLS[1] : SCAN_TOOLS[0]);
+    const actionPrefix = tool.id === 'patterns' ? 'FED' : 'BANK';
+    const actionType = isBullish ? 'BUY' : isBearish ? 'SELL' : 'HOLD';
+    const actionEmoji = isBullish ? '📈' : isBearish ? '📉' : '⚖️';
+    const actionColor = isBullish ? '#22C55E' : isBearish ? '#EF4444' : '#EAB308';
 
     return (
       <View style={styles.dashboardContainer}>
         <View style={styles.reportHeader}>
           <View>
-            <Text style={styles.reportBanner}>FINELO AI REPORT INSIGHTS</Text>
+            <Text style={styles.reportBanner}>INSTITUTIONAL ANALYTICS CORE</Text>
             <Text style={styles.reportDate}>{record.reportTimestamp || 'SYNCHRONIZED DATA'}</Text>
           </View>
           <Pressable onPress={closeAnalysis} style={styles.topCloseBtn}>
             <XCircle color="#A0A0A0" size={24} />
           </Pressable>
+        </View>
+
+        <View style={styles.institutionalTitleRow}>
+          <Text style={styles.institutionalEmoji}>{tool.emoji}</Text>
+          <Text style={styles.institutionalTitle}>{tool.title}</Text>
+        </View>
+
+        <View style={styles.suggestedActionContainer}>
+          <Text style={styles.suggestedActionLabel}>SUGGESTED ACTION</Text>
+          <View style={[styles.actionBadge, { borderColor: actionColor }]}>
+            <Text style={[styles.actionText, { color: actionColor }]}>
+              {actionPrefix} {actionType} {actionEmoji}
+            </Text>
+          </View>
         </View>
 
         {record.imageUri && (
@@ -287,13 +307,13 @@ export default function ScanScreen() {
           </View>
         )}
 
-        <Text style={styles.reportMainTitle}>{record.reportTitle}</Text>
+        <Text style={styles.reportReportTitle}>{record.reportTitle}</Text>
 
         <View style={styles.dashboardRow}>
           <View style={styles.dashBox}>
             <Text style={styles.boxLabel}>OVERALL TREND</Text>
             <View style={styles.trendValueContainer}>
-              <Text style={styles.trendEmoji}>{isBullish ? '📈' : record.overallTrend === 'Bearish' ? '📉' : '⚖️'}</Text>
+              <Text style={styles.trendEmoji}>{isBullish ? '📈' : isBearish ? '📉' : '⚖️'}</Text>
               <Text style={[styles.trendText, { color: trendColor }]}>{record.overallTrend?.toUpperCase()}</Text>
             </View>
           </View>
@@ -393,7 +413,7 @@ export default function ScanScreen() {
                       ]}
                     >
                       <View style={[styles.iconBox, { backgroundColor: tool.color + '15' }]}>
-                        <tool.Icon color={tool.color} size={24} />
+                        <Text style={{ fontSize: 24 }}>{tool.emoji}</Text>
                       </View>
                       <View style={styles.toolMeta}>
                         <Text style={styles.toolTitle}>{tool.title}</Text>
@@ -429,22 +449,27 @@ export default function ScanScreen() {
             
             {activeAnalysis && renderDashboard(activeAnalysis)}
 
-            {history.map((item) => (
-              <Pressable 
-                key={item.id} 
-                style={styles.logCard}
-                onPress={() => handleSelectRecord(item)} // FIXES ReferenceError
-              >
-                <View style={styles.logIconFrame}><Database color="#4B4B4B" size={22} /></View>
-                <View style={styles.logContent}>
-                  <Text style={styles.logTitle}>{item.reportTitle}</Text>
-                  <Text style={styles.logTime}>{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Processing'}</Text>
-                </View>
-                <View style={[styles.pillBadge, { backgroundColor: item.overallTrend === 'Bullish' ? '#58CC0220' : '#FF4B4B20' }]}>
-                  <Text style={[styles.pillText, { color: item.overallTrend === 'Bullish' ? '#58CC02' : '#FF4B4B' }]}>{(item.overallTrend || 'Neutral').toUpperCase()}</Text>
-                </View>
-              </Pressable>
-            ))}
+            {history.map((item) => {
+              const tool = SCAN_TOOLS.find(t => t.id === item.toolId) || (item.reportTitle?.includes('Sentiment') ? SCAN_TOOLS[1] : SCAN_TOOLS[0]);
+              return (
+                <Pressable 
+                  key={item.id} 
+                  style={styles.logCard}
+                  onPress={() => handleSelectRecord(item)} // FIXES ReferenceError
+                >
+                  <View style={styles.logIconFrame}>
+                    <Text style={{ fontSize: 20 }}>{tool.emoji}</Text>
+                  </View>
+                  <View style={styles.logContent}>
+                    <Text style={styles.logTitle}>{item.reportTitle}</Text>
+                    <Text style={styles.logTime}>{item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Processing'}</Text>
+                  </View>
+                  <View style={[styles.pillBadge, { backgroundColor: item.overallTrend === 'Bullish' ? '#58CC0220' : '#FF4B4B20' }]}>
+                    <Text style={[styles.pillText, { color: item.overallTrend === 'Bullish' ? '#58CC02' : '#FF4B4B' }]}>{(item.overallTrend || 'Neutral').toUpperCase()}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
 
             {history.length === 0 && (
               <View style={styles.emptyContainer}>
@@ -475,6 +500,14 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1, marginLeft: 20 },
   mainTitle: { fontSize: 20, fontWeight: '900', color: '#4B4B4B' },
   subTitle: { fontSize: 12, color: '#A0A0A0', marginTop: 4 },
+  institutionalTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 15 },
+  institutionalEmoji: { fontSize: 32 },
+  institutionalTitle: { fontSize: 22, fontWeight: '900', color: '#1A365D', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
+  suggestedActionContainer: { alignItems: 'center', marginBottom: 25 },
+  suggestedActionLabel: { fontSize: 9, fontWeight: '900', color: '#A0A0A0', letterSpacing: 1.5, marginBottom: 8 },
+  actionBadge: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 2, backgroundColor: '#FFFFFF' },
+  actionText: { fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  reportReportTitle: { fontSize: 14, fontWeight: '700', color: '#4B4B4B', marginBottom: 20, textAlign: 'center', fontStyle: 'italic' },
   dashboardContainer: { marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 32, borderWidth: 1, borderColor: '#F0F0F0', padding: 20, elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, marginBottom: 20 },
   reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 10 },
   reportBanner: { fontSize: 10, fontWeight: '900', color: '#007AFF', letterSpacing: 1 },
@@ -482,7 +515,6 @@ const styles = StyleSheet.create({
   topCloseBtn: { padding: 4 },
   imagePreviewFrame: { width: '100%', height: 180, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EEE', marginBottom: 15 },
   imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  reportMainTitle: { fontSize: 22, fontWeight: '900', color: '#2D2D2D', marginBottom: 20, textAlign: 'center' },
   dashboardRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   dashBox: { flex: 1, backgroundColor: '#F9F9FB', borderRadius: 20, padding: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F0F0F0' },
   boxLabel: { fontSize: 8, fontWeight: '900', color: '#A0A0A0', letterSpacing: 0.5, marginBottom: 8 },
@@ -516,7 +548,7 @@ const styles = StyleSheet.create({
   toolItem: { flexDirection: 'row', alignItems: 'center', padding: 18, backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12, borderWidth: 2, borderColor: '#F8F8F8' },
   iconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   toolMeta: { flex: 1, marginLeft: 16 },
-  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B' },
+  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
   toolDesc: { fontSize: 12, color: '#A0A0A0', marginTop: 2 },
   actionZone: { paddingHorizontal: 20, marginTop: 10 },
   scanActionBtn: { backgroundColor: '#4B4B4B', paddingVertical: 18, borderRadius: 22, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },

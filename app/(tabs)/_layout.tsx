@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, Text } from 'react-native';
 
 // Stability Guard
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
@@ -41,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: 'Scanner',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'scan' : 'scan-outline'} size={24} color={color} />
+            <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.6 }}>🏛️🏦</Text>
           ),
         }}
       />
