@@ -35,45 +35,102 @@ const COINGECKO_KEY = process.env.EXPO_PUBLIC_COINGECKO_API_KEY;
 const LOGODEV_KEY = process.env.EXPO_PUBLIC_LOGODEV_API_KEY;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Ensure exactly 50 cryptos for the matrix pipeline
+/**
+ * DATA REGISTRY: Explicit CoinGecko ID Mapping (Exactly 50)
+ */
 const CRYPTO_REGISTRY = [
-  ...MARKET_CRYPTOS,
-  { id: 'algorand', ticker: 'ALGO', name: 'Algorand', fallbackEmoji: '🅰️' }
-].slice(0, 50);
+  { id: 'bitcoin', ticker: 'BTC', name: 'Bitcoin', color: '#F7931A' },
+  { id: 'ethereum', ticker: 'ETH', name: 'Ethereum', color: '#627EEA' },
+  { id: 'solana', ticker: 'SOL', name: 'Solana', color: '#14F195' },
+  { id: 'binancecoin', ticker: 'BNB', name: 'BNB', color: '#F3BA2F' },
+  { id: 'ripple', ticker: 'XRP', name: 'XRP', color: '#23292F' },
+  { id: 'cardano', ticker: 'ADA', name: 'Cardano', color: '#0033AD' },
+  { id: 'dogecoin', ticker: 'DOGE', name: 'Dogecoin', color: '#C2A633' },
+  { id: 'shiba-inu', ticker: 'SHIB', name: 'Shiba Inu', color: '#FFA409' },
+  { id: 'avalanche-2', ticker: 'AVAX', name: 'Avalanche', color: '#E84142' },
+  { id: 'polkadot', ticker: 'DOT', name: 'Polkadot', color: '#E6007A' },
+  { id: 'chainlink', ticker: 'LINK', name: 'Chainlink', color: '#2A5ADA' },
+  { id: 'polygon', ticker: 'MATIC', name: 'Polygon', color: '#8247E5' },
+  { id: 'near', ticker: 'NEAR', name: 'NEAR Protocol', color: '#000000' },
+  { id: 'uniswap', ticker: 'UNI', name: 'Uniswap', color: '#FF007A' },
+  { id: 'litecoin', ticker: 'LTC', name: 'Litecoin', color: '#BFBBBB' },
+  { id: 'stellar', ticker: 'XLM', name: 'Stellar', color: '#08B5E5' },
+  { id: 'vechain', ticker: 'VET', name: 'VeChain', color: '#15BDFF' },
+  { id: 'cosmos', ticker: 'ATOM', name: 'Cosmos', color: '#2E3148' },
+  { id: 'ethereum-classic', ticker: 'ETC', name: 'Ethereum Classic', color: '#348331' },
+  { id: 'monero', ticker: 'XMR', name: 'Monero', color: '#FF6600' },
+  { id: 'okb', ticker: 'OKB', name: 'OKB', color: '#3075F2' },
+  { id: 'filecoin', ticker: 'FIL', name: 'Filecoin', color: '#0090FF' },
+  { id: 'kaspa', ticker: 'KAS', name: 'Kaspa', color: '#70C5BA' },
+  { id: 'aptos', ticker: 'APT', name: 'Aptos', color: '#000000' },
+  { id: 'hedera-hashgraph', ticker: 'HBAR', name: 'Hedera', color: '#000000' },
+  { id: 'cronos', ticker: 'CRO', name: 'Cronos', color: '#002D74' },
+  { id: 'optimism', ticker: 'OP', name: 'Optimism', color: '#FF0420' },
+  { id: 'arbitrum', ticker: 'ARB', name: 'Arbitrum', color: '#28A0F0' },
+  { id: 'lido-dao', ticker: 'LDO', name: 'Lido DAO', color: '#00A3FF' },
+  { id: 'injective-protocol', ticker: 'INJ', name: 'Injective', color: '#00A3FF' },
+  { id: 'quant-network', ticker: 'QNT', name: 'Quant', color: '#273444' },
+  { id: 'maker', ticker: 'MKR', name: 'Maker', color: '#1AAB9B' },
+  { id: 'the-graph', ticker: 'GRT', name: 'The Graph', color: '#6747ED' },
+  { id: 'immutable-x', ticker: 'IMX', name: 'Immutable', color: '#0D0D0D' },
+  { id: 'render-token', ticker: 'RNDR', name: 'Render', color: '#000000' },
+  { id: 'stacks', ticker: 'STX', name: 'Stacks', color: '#5546FF' },
+  { id: 'thorchain', ticker: 'RUNE', name: 'THORChain', color: '#33FFCC' },
+  { id: 'aave', ticker: 'AAVE', name: 'Aave', color: '#B6509E' },
+  { id: 'flow', ticker: 'FLOW', name: 'Flow', color: '#00EF8B' },
+  { id: 'algorand', ticker: 'ALGO', name: 'Algorand', color: '#000000' },
+  { id: 'bitcoin-cash', ticker: 'BCH', name: 'Bitcoin Cash', color: '#8BC34A' },
+  { id: 'dai', ticker: 'DAI', name: 'Dai', color: '#F5AC37' },
+  { id: 'wrapped-bitcoin', ticker: 'WBTC', name: 'Wrapped Bitcoin', color: '#F7931A' },
+  { id: 'fantom', ticker: 'FTM', name: 'Fantom', color: '#1969FF' },
+  { id: 'bittensor', ticker: 'TAO', name: 'Bittensor', color: '#000000' },
+  { id: 'mantle', ticker: 'MNT', name: 'Mantle', color: '#000000' },
+  { id: 'gala', ticker: 'GALA', name: 'Gala', color: '#000000' },
+  { id: 'eos', ticker: 'EOS', name: 'EOS', color: '#000000' },
+  { id: 'iota', ticker: 'IOTA', name: 'IOTA', color: '#101921' },
+  { id: 'the-sandbox', ticker: 'SAND', name: 'The Sandbox', color: '#000000' },
+];
 
 const STOCK_REGISTRY = MARKET_STOCKS.slice(0, 50);
 
 /**
  * HIGH CONTRAST FALLBACK AVATAR SYSTEM
  */
-const AssetAvatar = ({ ticker, color, name }: { ticker: string; color?: string; name: string }) => {
-  const isBTC = ticker === 'BTC';
-  const isETH = ticker === 'ETH';
-  const isSOL = ticker === 'SOL';
+const AssetAvatar = ({ ticker, color }: { ticker: string; color?: string }) => {
+  const isBTC = ticker.toUpperCase() === 'BTC';
+  const isETH = ticker.toUpperCase() === 'ETH';
+  const isSOL = ticker.toUpperCase() === 'SOL';
   
   const bgColor = isBTC ? '#FFD700' : isETH ? '#E5E4E2' : isSOL ? '#8247E5' : (color || '#F1F5F9');
   const textColor = (isBTC || isETH) ? '#000' : '#FFF';
 
   return (
     <View style={[styles.avatarBadge, { backgroundColor: bgColor }]}>
-      <Text style={[styles.avatarText, { color: isSOL || (!isBTC && !isETH) ? '#FFF' : textColor }]}>
-        {ticker.substring(0, 3)}
+      <Text style={[styles.avatarText, { color: textColor }]}>
+        {ticker.substring(0, 3).toUpperCase()}
       </Text>
     </View>
   );
 };
 
-const AssetRowIcon = ({ domain, ticker, color, name }: { domain?: string; ticker: string; color?: string; name: string }) => {
+/**
+ * UNIFIED LOGO RENDERER: LogoDev (Stocks) + CoinGecko (Crypto)
+ */
+const AssetRowIcon = ({ domain, ticker, color, name, remoteUri }: { domain?: string; ticker: string; color?: string; name: string; remoteUri?: string }) => {
   const [error, setError] = useState(false);
-  const logoUri = domain ? `https://img.logo.dev/${domain}?token=${LOGODEV_KEY}` : null;
+  const logoUri = remoteUri || (domain ? `https://img.logo.dev/${domain}?token=${LOGODEV_KEY}` : null);
 
   if (error || !logoUri) {
-    return <AssetAvatar ticker={ticker} color={color} name={name} />;
+    return <AssetAvatar ticker={ticker} color={color} />;
   }
 
   return (
     <View style={styles.logoFrame}>
-      <Image source={{ uri: logoUri }} style={styles.logoImage} onError={() => setError(true)} />
+      <Image 
+        source={{ uri: logoUri }} 
+        style={styles.logoImage} 
+        onError={() => setError(true)} 
+      />
     </View>
   );
 };
@@ -85,11 +142,11 @@ export default function PortfolioDashboard() {
   // DASHBOARD STATE
   const [activeTab, setActiveTab] = useState<'market' | 'positions'>('market');
   const [searchQuery, setSearchQuery] = useState('');
-  const [marketPrices, setMarketPrices] = useState<Record<string, { price: number; change: number }>>({});
+  const [marketPrices, setMarketPrices] = useState<Record<string, { price: number; change: number; image?: string }>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // FIRESTORE SYNC (portfolio_v2)
+  // FIRESTORE SYNC
   const [cashBalance, setCashBalance] = useState(0);
   const [holdings, setHoldings] = useState<any[]>([]);
   const [streakCount, setStreakCount] = useState(0);
@@ -102,54 +159,51 @@ export default function PortfolioDashboard() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   /**
-   * CHUNKED NETWORK PIPELINE: CRUSHING RATE LIMITS
+   * REPAIRED NETWORK PIPELINE: CoinGecko Markets API + Chunked Finnhub
    */
   const fetchMarketData = useCallback(async () => {
     try {
-      const results: Record<string, { price: number; change: number }> = { ...marketPrices };
+      const newResults: Record<string, { price: number; change: number; image?: string }> = {};
 
-      // 1. CHUNKED STOCK FETCH (Finnhub: 25 + 25 with 1.5s delay)
+      // 1. CHUNKED STOCK FETCH (Finnhub)
       if (FINNHUB_KEY) {
-        const batch1 = STOCK_REGISTRY.slice(0, 25);
-        const batch2 = STOCK_REGISTRY.slice(25, 50);
-
         const fetchBatch = async (batch: typeof STOCK_REGISTRY) => {
           await Promise.all(batch.map(async (s) => {
             try {
               const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.ticker}&token=${FINNHUB_KEY}`);
               const data = await res.json();
-              if (data.c) results[s.ticker] = { price: data.c, change: data.dp };
+              if (data.c) newResults[s.ticker] = { price: data.c, change: data.dp };
             } catch (e) {}
           }));
         };
-
-        await fetchBatch(batch1);
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Non-blocking cooldown
-        await fetchBatch(batch2);
+        await fetchBatch(STOCK_REGISTRY.slice(0, 25));
+        await new Promise(r => setTimeout(r, 1500));
+        await fetchBatch(STOCK_REGISTRY.slice(25, 50));
       }
 
-      // 2. CRYPTO MATRIX PIPELINE (CoinGecko Batch)
+      // 2. REPAIRED COINGECKO MARKETS API
       const ids = CRYPTO_REGISTRY.map(c => c.id).join(',');
-      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
-      const cgRes = await fetch(cgUrl, COINGECKO_KEY ? { headers: { 'x-cg-pro-api-key': COINGECKO_KEY } } : {});
+      const cgUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`;
+      const cgRes = await fetch(cgUrl, COINGECKO_KEY ? { headers: { 'x-cg-demo-api-key': COINGECKO_KEY } } : {});
       const cgData = await cgRes.json();
       
-      CRYPTO_REGISTRY.forEach(coin => {
-        if (cgData[coin.id]) {
-          results[coin.ticker] = { 
-            price: cgData[coin.id].usd, 
-            change: cgData[coin.id].usd_24h_change
+      if (Array.isArray(cgData)) {
+        cgData.forEach(coin => {
+          newResults[coin.symbol.toUpperCase()] = { 
+            price: coin.current_price, 
+            change: coin.price_change_percentage_24h,
+            image: coin.image
           };
-        }
-      });
+        });
+      }
 
-      setMarketPrices(results);
+      setMarketPrices(prev => ({ ...prev, ...newResults }));
     } catch (e) {
       console.error('Market Pipeline Error:', e);
     } finally {
       setRefreshing(false);
     }
-  }, [marketPrices]);
+  }, []);
 
   /**
    * FIRESTORE PERSISTENCE LAYER
@@ -167,23 +221,13 @@ export default function PortfolioDashboard() {
         setStreakCount(data.currentStreakCount || 0);
         setLastClaimed(data.lastClaimedTimestamp || '');
 
-        // Rolling Streak Integrity Check
         const today = new Date().toDateString();
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toDateString();
-        
-        if (data.lastClaimedTimestamp && data.lastClaimedTimestamp !== today && data.lastClaimedTimestamp !== yesterdayStr) {
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        if (data.lastClaimedTimestamp && data.lastClaimedTimestamp !== today && data.lastClaimedTimestamp !== yesterday.toDateString()) {
           await updateDoc(docRef, { currentStreakCount: 0 });
         }
       } else {
-        await setDoc(docRef, {
-          cashBalance: 50000,
-          holdings: [],
-          currentStreakCount: 0,
-          lastClaimedTimestamp: '',
-          updatedAt: serverTimestamp()
-        });
+        await setDoc(docRef, { cashBalance: 50000, holdings: [], currentStreakCount: 0, lastClaimedTimestamp: '', updatedAt: serverTimestamp() });
       }
       setLoading(false);
     });
@@ -191,33 +235,31 @@ export default function PortfolioDashboard() {
     return () => unsubscribe();
   }, [user?.uid]);
 
-  // Streak Pulsating Effect
+  // Streak Pulse
   useEffect(() => {
     if (rewardModalVisible) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        ])
-      ).start();
+      Animated.loop(Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])).start();
     }
   }, [rewardModalVisible]);
 
   /**
-   * CALCULATED METRICS
+   * CALCULATED AGGREGATES
    */
-  const { netWorth, profitLoss, plPct } = useMemo(() => {
+  const stats = useMemo(() => {
     let marketVal = 0;
     let costBasis = 0;
     holdings.forEach(h => {
-      const price = marketPrices[h.ticker]?.price || h.avgPrice;
-      marketVal += h.quantity * price;
+      const live = marketPrices[h.ticker]?.price || h.avgPrice;
+      marketVal += h.quantity * live;
       costBasis += h.quantity * h.avgPrice;
     });
-    const total = cashBalance + marketVal;
+    const netWorth = cashBalance + marketVal;
     const pl = marketVal - costBasis;
     const pct = costBasis > 0 ? (pl / costBasis) * 100 : 0;
-    return { netWorth: total, profitLoss: pl, plPct: pct };
+    return { netWorth, profitLoss: pl, plPct: pct };
   }, [holdings, marketPrices, cashBalance]);
 
   const filteredMarket = useMemo(() => {
@@ -228,139 +270,98 @@ export default function PortfolioDashboard() {
   }, [searchQuery]);
 
   /**
-   * REWARD LOGIC: 7-DAY ROLLING STREAK
+   * REWARD & TRADE HANDLERS
    */
-  const handleClaimReward = async () => {
-    if (!user?.uid) return;
-    const today = new Date().toDateString();
-    if (lastClaimed === today) return Alert.alert('Already Claimed', 'Return tomorrow for the next drop.');
-
+  const claimReward = async () => {
+    if (!user?.uid || lastClaimed === new Date().toDateString()) return;
     const docRef = doc(db, 'portfolio_v2', user.uid);
-    let nextStreak = streakCount + 1;
-    if (nextStreak > 7) nextStreak = 1;
-
-    // Progression Matrix
-    const cashRewards = [5000, 10000, 15000, 20000, 25000, 30000, 100000];
-    const rewardCash = cashRewards[nextStreak - 1];
-    let newHoldings = [...holdings];
-
-    // Asset Drop (Jackpot Day 7 vs Standard)
-    const assetTicker = nextStreak === 7 ? 'NVDA' : 'AAPL';
-    const assetQty = nextStreak === 7 ? 2 : 1;
-    const livePrice = marketPrices[assetTicker]?.price || 150;
-    
-    const idx = newHoldings.findIndex(h => h.ticker === assetTicker);
-    if (idx > -1) {
-      const h = newHoldings[idx];
-      newHoldings[idx] = { ...h, quantity: h.quantity + assetQty, avgPrice: ((h.avgPrice * h.quantity) + (livePrice * assetQty)) / (h.quantity + assetQty) };
-    } else {
-      newHoldings.push({ ticker: assetTicker, quantity: assetQty, avgPrice: livePrice });
-    }
+    let next = streakCount + 1;
+    if (next > 7) next = 1;
+    const cash = [5000, 10000, 15000, 20000, 25000, 30000, 100000][next-1];
+    let newH = [...holdings];
+    const ticker = next === 7 ? 'NVDA' : 'AAPL';
+    const qty = next === 7 ? 2 : 1;
+    const p = marketPrices[ticker]?.price || 150;
+    const i = newH.findIndex(h => h.ticker === ticker);
+    if (i > -1) newH[i] = { ...newH[i], quantity: newH[i].quantity + qty, avgPrice: ((newH[i].avgPrice * newH[i].quantity) + (p * qty)) / (newH[i].quantity + qty) };
+    else newH.push({ ticker, quantity: qty, avgPrice: p });
 
     try {
-      await updateDoc(docRef, {
-        cashBalance: cashBalance + rewardCash,
-        currentStreakCount: nextStreak,
-        lastClaimedTimestamp: today,
-        holdings: newHoldings,
-        updatedAt: serverTimestamp()
-      });
+      await updateDoc(docRef, { cashBalance: cashBalance + cash, currentStreakCount: next, lastClaimedTimestamp: new Date().toDateString(), holdings: newH, updatedAt: serverTimestamp() });
       setRewardModalVisible(false);
-      Alert.alert('Reward Claimed! 🔥', `Day ${nextStreak}: +$${rewardCash.toLocaleString()} & ${assetQty}x ${assetTicker} added.`);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to claim reward.');
+      Alert.alert('Streak Extended! 🔥', `Day ${next} Claimed: +$${cash.toLocaleString()} Simulation Cash.`);
+    } catch (e) { Alert.alert('Error', 'Sync failed.'); }
+  };
+
+  const trade = async (buy: boolean) => {
+    if (!user?.uid || !selectedAsset) return;
+    const qty = parseFloat(tradeQuantity);
+    const p = marketPrices[selectedAsset.ticker]?.price || 0;
+    if (isNaN(qty) || qty <= 0 || p <= 0) return Alert.alert('Invalid Order');
+    const val = qty * p;
+    const docRef = doc(db, 'portfolio_v2', user.uid);
+    let c = cashBalance, h = [...holdings];
+    const i = h.findIndex(x => x.ticker === selectedAsset.ticker);
+
+    if (buy) {
+      if (val > cashBalance) return Alert.alert('Insufficient Funds');
+      c -= val;
+      if (i > -1) h[i] = { ...h[i], quantity: h[i].quantity + qty, avgPrice: ((h[i].avgPrice * h[i].quantity) + val) / (h[i].quantity + qty) };
+      else h.push({ ticker: selectedAsset.ticker, quantity: qty, avgPrice: p });
+    } else {
+      if (i === -1 || h[i].quantity < qty) return Alert.alert('Insufficient Shares');
+      c += val;
+      if (h[i].quantity - qty <= 0) h.splice(i, 1);
+      else h[i] = { ...h[i], quantity: h[i].quantity - qty };
     }
+    try {
+      await updateDoc(docRef, { cashBalance: c, holdings: h, updatedAt: serverTimestamp() });
+      setSelectedAsset(null);
+    } catch (e) { Alert.alert('Trade Failed'); }
   };
 
   /**
-   * TRADE ENGINE
+   * FLATLIST RENDERERS: Mandatory Logo Integrations
    */
-  const executeTrade = async (isBuy: boolean) => {
-    if (!user?.uid || !selectedAsset) return;
-    const qty = parseFloat(tradeQuantity);
-    if (isNaN(qty) || qty <= 0) return Alert.alert('Invalid Quantity');
-
-    const price = marketPrices[selectedAsset.ticker]?.price || 0;
-    if (price <= 0) return Alert.alert('Error', 'Price data unavailable.');
-
-    const totalVal = qty * price;
-    const docRef = doc(db, 'portfolio_v2', user.uid);
-    let newCash = cashBalance;
-    let newHoldings = [...holdings];
-    const idx = newHoldings.findIndex(h => h.ticker === selectedAsset.ticker);
-
-    if (isBuy) {
-      if (totalVal > cashBalance) return Alert.alert('Insufficient Funds');
-      newCash -= totalVal;
-      if (idx > -1) {
-        const h = newHoldings[idx];
-        newHoldings[idx] = { ...h, quantity: h.quantity + qty, avgPrice: ((h.avgPrice * h.quantity) + totalVal) / (h.quantity + qty) };
-      } else {
-        newHoldings.push({ ticker: selectedAsset.ticker, quantity: qty, avgPrice: price });
-      }
-    } else {
-      if (idx === -1 || newHoldings[idx].quantity < qty) return Alert.alert('Insufficient Shares');
-      newCash += totalVal;
-      const h = newHoldings[idx];
-      if (h.quantity - qty <= 0) newHoldings.splice(idx, 1);
-      else newHoldings[idx] = { ...h, quantity: h.quantity - qty };
-    }
-
-    try {
-      await updateDoc(docRef, { cashBalance: newCash, holdings: newHoldings, updatedAt: serverTimestamp() });
-      setSelectedAsset(null);
-      setTradeQuantity('1');
-    } catch (e) {
-      Alert.alert('Transaction Failed');
-    }
-  };
-
-  // FLATLIST RENDERERS
   const renderMarketItem = ({ item }: { item: any }) => {
     const live = marketPrices[item.ticker];
     return (
       <Pressable style={styles.assetCard} onPress={() => setSelectedAsset(item)}>
-        <AssetRowIcon ticker={item.ticker} domain={item.domain} color={item.color} name={item.name} />
+        <AssetRowIcon ticker={item.ticker} domain={item.domain} color={item.color} name={item.name} remoteUri={live?.image} />
         <View style={styles.assetMain}>
           <Text style={styles.assetTicker}>{item.ticker}</Text>
           <Text style={styles.assetName} numberOfLines={1}>{item.name}</Text>
         </View>
         <View style={styles.assetRight}>
           <Text style={styles.assetPrice}>{live ? `$${live.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '---'}</Text>
-          <Text style={[styles.assetDelta, { color: (live?.change || 0) >= 0 ? '#34C759' : '#FF3B30' }]}>
-            {(live?.change || 0).toFixed(2)}%
-          </Text>
+          <Text style={[styles.assetDelta, { color: (live?.change || 0) >= 0 ? '#34C759' : '#FF3B30' }]}>{(live?.change || 0).toFixed(2)}%</Text>
         </View>
       </Pressable>
     );
   };
 
   const renderPositionItem = ({ item }: { item: any }) => {
-    const live = marketPrices[item.ticker]?.price || item.avgPrice;
-    const isUp = live >= item.avgPrice;
+    const live = marketPrices[item.ticker];
+    const livePrice = live?.price || item.avgPrice;
+    const isUp = livePrice >= item.avgPrice;
+    const meta = [...STOCK_REGISTRY, ...CRYPTO_REGISTRY].find(a => a.ticker === item.ticker);
+
     return (
       <View style={styles.holdingCard}>
         <View style={styles.holdingHeader}>
-          <Text style={styles.holdingTicker}>{item.ticker}</Text>
+          <AssetRowIcon ticker={item.ticker} domain={(meta as any)?.domain} color={(meta as any)?.color} name={(meta as any)?.name || item.ticker} remoteUri={live?.image} />
+          <View style={styles.holdingMain}>
+            <Text style={styles.holdingTicker}>{item.ticker}</Text>
+            <Text style={styles.holdingName} numberOfLines={1}>{(meta as any)?.name || 'Position'}</Text>
+          </View>
           <View style={[styles.plBadge, { backgroundColor: isUp ? '#E8F5E9' : '#FFEBEE' }]}>
-            <Text style={[styles.plBadgeText, { color: isUp ? '#2E7D32' : '#C62828' }]}>
-              {isUp ? '▲' : '▼'} {Math.abs(((live - item.avgPrice) / item.avgPrice) * 100).toFixed(2)}%
-            </Text>
+            <Text style={[styles.plBadgeText, { color: isUp ? '#2E7D32' : '#C62828' }]}>{isUp ? '▲' : '▼'} {Math.abs(((livePrice - item.avgPrice) / item.avgPrice) * 100).toFixed(2)}%</Text>
           </View>
         </View>
         <View style={styles.holdingGrid}>
-          <View style={styles.gridCell}>
-            <Text style={styles.gridLabel}>SHARES</Text>
-            <Text style={styles.gridValue}>{item.quantity.toFixed(4)}</Text>
-          </View>
-          <View style={styles.gridCell}>
-            <Text style={styles.gridLabel}>AVG COST</Text>
-            <Text style={styles.gridValue}>${item.avgPrice.toLocaleString()}</Text>
-          </View>
-          <View style={[styles.gridCell, { alignItems: 'flex-end' }]}>
-            <Text style={styles.gridLabel}>VALUE</Text>
-            <Text style={styles.gridValue}>${(item.quantity * live).toLocaleString()}</Text>
-          </View>
+          <View style={styles.gridCell}><Text style={styles.gridLabel}>SHARES</Text><Text style={styles.gridValue}>{item.quantity.toFixed(4)}</Text></View>
+          <View style={styles.gridCell}><Text style={styles.gridLabel}>AVG COST</Text><Text style={styles.gridValue}>${item.avgPrice.toLocaleString()}</Text></View>
+          <View style={[styles.gridCell, { alignItems: 'flex-end' }]}><Text style={styles.gridLabel}>VALUE</Text><Text style={styles.gridValue}>${(item.quantity * livePrice).toLocaleString()}</Text></View>
         </View>
       </View>
     );
@@ -370,7 +371,7 @@ export default function PortfolioDashboard() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* ACTION HEADER */}
+      {/* HEADER: Quant Hub + Streak */}
       <View style={styles.header}>
         <Text style={styles.title}>Quant Hub</Text>
         <Pressable onPress={() => setRewardModalVisible(true)} style={styles.streakBtn}>
@@ -379,154 +380,64 @@ export default function PortfolioDashboard() {
         </Pressable>
       </View>
 
-      {/* FIXED BALANCE CARD */}
-      <View style={styles.balanceWrapper}>
+      {/* LOCKED VIEWPORT: Total Balance Card */}
+      <View style={styles.lockedArea}>
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>TOTAL NET WORTH</Text>
-          <Text style={styles.balanceAmount}>${netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-          <View style={styles.balanceSubRow}>
-            <View style={[styles.plChip, { backgroundColor: profitLoss >= 0 ? '#E8F5E9' : '#FFEBEE' }]}>
-              <Text style={[styles.plChipText, { color: profitLoss >= 0 ? '#2E7D32' : '#C62828' }]}>
-                {profitLoss >= 0 ? '▲' : '▼'} {Math.abs(plPct).toFixed(2)}%
-              </Text>
+          <Text style={styles.balanceAmount}>${stats.netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+          <View style={styles.balanceFooter}>
+            <View style={[styles.plChip, { backgroundColor: stats.profitLoss >= 0 ? '#E8F5E9' : '#FFEBEE' }]}>
+              <Text style={[styles.plChipText, { color: stats.profitLoss >= 0 ? '#2E7D32' : '#C62828' }]}>{stats.profitLoss >= 0 ? '▲' : '▼'} {Math.abs(stats.plPct).toFixed(2)}%</Text>
             </View>
             <Text style={styles.cashLabel}>CASH: ${cashBalance.toLocaleString()}</Text>
           </View>
         </View>
       </View>
 
-      {/* SEGMENTED TAB DECK */}
+      {/* TAB DECK: Market vs Positions */}
       <View style={styles.tabDeck}>
-        <Pressable onPress={() => setActiveTab('market')} style={[styles.tabBtn, activeTab === 'market' && styles.tabBtnActive]}>
-          <Text style={[styles.tabText, activeTab === 'market' && styles.tabTextActive]}>Market Assets</Text>
-        </Pressable>
-        <Pressable onPress={() => setActiveTab('positions')} style={[styles.tabBtn, activeTab === 'positions' && styles.tabBtnActive]}>
-          <Text style={[styles.tabText, activeTab === 'positions' && styles.tabTextActive]}>My Positions</Text>
-        </Pressable>
+        <Pressable onPress={() => setActiveTab('market')} style={[styles.tabBtn, activeTab === 'market' && styles.tabBtnActive]}><Text style={[styles.tabText, activeTab === 'market' && styles.tabTextActive]}>Market Assets</Text></Pressable>
+        <Pressable onPress={() => setActiveTab('positions')} style={[styles.tabBtn, activeTab === 'positions' && styles.tabBtnActive]}><Text style={[styles.tabText, activeTab === 'positions' && styles.tabTextActive]}>My Positions</Text></Pressable>
       </View>
 
-      {/* ASSET SCROLL ENGINE (FLATLIST OPTIMIZED) */}
+      {/* MAIN DATA ENGINE */}
       {activeTab === 'market' ? (
         <View style={styles.flexOne}>
-          <View style={styles.searchBox}>
-            <TextInput 
-              style={styles.searchField}
-              placeholder="Search 100+ high profile assets..."
-              placeholderTextColor="#94A3B8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-            />
-          </View>
-          <FlatList
-            data={filteredMarket}
-            renderItem={renderMarketItem}
-            keyExtractor={item => item.ticker}
-            contentContainerStyle={styles.listPadding}
-            showsVerticalScrollIndicator={false}
-            maxToRenderPerBatch={10}
-            initialNumToRender={8}
-            windowSize={5}
-            removeClippedSubviews={true}
-            onRefresh={() => { setRefreshing(true); fetchMarketData(); }}
-            refreshing={refreshing}
-          />
+          <View style={styles.searchBox}><TextInput style={styles.searchField} placeholder="Filter 100+ global assets..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} /></View>
+          <FlatList data={filteredMarket} renderItem={renderMarketItem} keyExtractor={it => it.ticker} contentContainerStyle={styles.listPad} showsVerticalScrollIndicator={false} onRefresh={() => { setRefreshing(true); fetchMarketData(); }} refreshing={refreshing} maxToRenderPerBatch={10} windowSize={5} />
         </View>
       ) : (
-        <FlatList
-          data={holdings}
-          renderItem={renderPositionItem}
-          keyExtractor={(item, index) => `${item.ticker}-${index}`}
-          contentContainerStyle={styles.listPadding}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No active positions detected.</Text>
-              <Pressable onPress={() => setActiveTab('market')} style={styles.emptyBtn}>
-                <Text style={styles.emptyBtnText}>Market Access</Text>
-              </Pressable>
-            </View>
-          }
-        />
+        <FlatList data={holdings} renderItem={renderPositionItem} keyExtractor={(it, idx) => `${it.ticker}-${idx}`} contentContainerStyle={styles.listPad} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>Empty simulation ledger.</Text></View>} />
       )}
 
-      {/* STREAK REWARD MODAL */}
+      {/* STREAK MODAL */}
       <Modal visible={rewardModalVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.rewardModal}>
-            <Text style={styles.rewardSub}>REWARD SEQUENCE</Text>
-            <Text style={styles.rewardTitle}>7-Day Rolling Streak</Text>
-            
-            <View style={styles.streakGrid}>
-              {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-                const isDone = d <= streakCount;
-                const isNext = d === streakCount + 1 && lastClaimed !== new Date().toDateString();
-                return (
-                  <View key={d} style={styles.streakNode}>
-                    <Animated.View style={[
-                      styles.nodeBadge, 
-                      isDone && styles.nodeBadgeDone,
-                      isNext && { transform: [{ scale: pulseAnim }], borderColor: '#CE82FF', borderWidth: 2 }
-                    ]}>
-                      <Text style={styles.nodeIcon}>{isDone ? '✔️' : d === 7 ? '🎁' : '💰'}</Text>
-                    </Animated.View>
-                    <Text style={[styles.nodeLabel, isNext && { color: '#CE82FF' }]}>Day {d}</Text>
-                  </View>
-                );
+        <View style={styles.modalBg}>
+          <View style={styles.rewardCard}>
+            <Text style={styles.rewardLabel}>REWARD FLOW</Text>
+            <Text style={styles.rewardTitle}>7-Day Rolling Cycle</Text>
+            <View style={styles.streakRow}>
+              {[1, 2, 3, 4, 5, 6, 7].map(d => {
+                const isD = d <= streakCount; const isN = d === streakCount + 1 && lastClaimed !== new Date().toDateString();
+                return <View key={d} style={styles.node}><Animated.View style={[styles.badge, isD && styles.badgeD, isN && { transform: [{ scale: pulseAnim }], borderColor: '#CE82FF', borderWidth: 2 }]}><Text>{isD ? '✔️' : d === 7 ? '🎁' : '💰'}</Text></Animated.View><Text style={[styles.nodeL, isN && { color: '#CE82FF' }]}>Day {d}</Text></View>;
               })}
             </View>
-
-            <View style={styles.nextRewardBox}>
-              <Text style={styles.nextRewardLabel}>NEXT ALLOCATION:</Text>
-              <Text style={styles.nextRewardVal}>+${((streakCount + 1) * 10000).toLocaleString()} Simulation Cash</Text>
-            </View>
-
-            <Pressable 
-              style={[styles.claimBtn, lastClaimed === new Date().toDateString() && styles.claimBtnOff]} 
-              onPress={handleClaimReward}
-              disabled={lastClaimed === new Date().toDateString()}
-            >
-              <Text style={styles.claimBtnText}>
-                {lastClaimed === new Date().toDateString() ? 'Claimed' : 'Claim Daily Drop'}
-              </Text>
-            </Pressable>
-            
-            <Pressable onPress={() => setRewardModalVisible(false)} style={styles.rewardClose}>
-              <Text style={styles.rewardCloseText}>Dismiss</Text>
-            </Pressable>
+            <View style={styles.nextBox}><Text style={styles.nextL}>NEXT DROP:</Text><Text style={styles.nextV}>+${((streakCount + 1) * 10000).toLocaleString()}</Text></View>
+            <Pressable style={[styles.claimB, lastClaimed === new Date().toDateString() && { opacity: 0.5 }]} onPress={claimReward}><Text style={styles.claimBT}>{lastClaimed === new Date().toDateString() ? 'Claimed' : 'Collect Drop'}</Text></Pressable>
+            <Pressable onPress={() => setRewardModalVisible(false)} style={styles.closeReward}><Text style={styles.closeRewardT}>Dismiss</Text></Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* TRADE MODAL */}
+      {/* TRADE SHEET */}
       <Modal visible={!!selectedAsset} transparent animationType="slide">
-        <View style={styles.tradeBackdrop}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.tradeSheet}>
+        <View style={styles.sheetBg}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheet}>
             <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{selectedAsset?.ticker}</Text>
-              <Pressable onPress={() => setSelectedAsset(null)} style={styles.sheetClose}><Text>✕</Text></Pressable>
-            </View>
-            <Text style={styles.sheetRate}>Live Rate: ${marketPrices[selectedAsset?.ticker]?.price?.toLocaleString() || '---'}</Text>
-            
-            <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>UNITS</Text>
-              <TextInput 
-                style={styles.inputField} 
-                keyboardType="decimal-pad" 
-                value={tradeQuantity} 
-                onChangeText={setTradeQuantity}
-              />
-            </View>
-
-            <View style={styles.btnRow}>
-              <Pressable onPress={() => executeTrade(true)} style={[styles.execBtn, { backgroundColor: '#34C759' }]}>
-                <Text style={styles.execBtnText}>BUY</Text>
-              </Pressable>
-              <Pressable onPress={() => executeTrade(false)} style={[styles.execBtn, { backgroundColor: '#FF3B30' }]}>
-                <Text style={styles.execBtnText}>SELL</Text>
-              </Pressable>
-            </View>
+            <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{selectedAsset?.ticker}</Text><Pressable onPress={() => setSelectedAsset(null)} style={styles.sheetX}><Text>✕</Text></Pressable></View>
+            <Text style={styles.sheetRate}>Market Price: ${marketPrices[selectedAsset?.ticker]?.price?.toLocaleString() || '---'}</Text>
+            <View style={styles.inputBox}><Text style={styles.inputLabel}>UNITS</Text><TextInput style={styles.inputF} keyboardType="decimal-pad" value={tradeQuantity} onChangeText={setTradeQuantity} autoFocus /></View>
+            <View style={styles.sheetBtnRow}><Pressable onPress={() => trade(true)} style={[styles.sheetB, { backgroundColor: '#34C759' }]}><Text style={styles.sheetBT}>BUY</Text></Pressable><Pressable onPress={() => trade(false)} style={[styles.sheetB, { backgroundColor: '#FF3B30' }]}><Text style={styles.sheetBT}>SELL</Text></Pressable></View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -535,83 +446,81 @@ export default function PortfolioDashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FFF' },
   fullCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   flexOne: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '900', color: '#0F172A' },
+  title: { fontSize: 26, fontWeight: '900', color: '#0F172A' },
   streakBtn: { backgroundColor: '#F8F1FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#CE82FF' },
-  streakEmoji: { fontSize: 16, marginRight: 4 },
+  streakEmoji: { fontSize: 16, marginRight: 5 },
   streakBtnText: { fontSize: 12, fontWeight: '800', color: '#CE82FF' },
-  balanceWrapper: { paddingHorizontal: 20, marginBottom: 20 },
-  balanceCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, borderWidth: 2, borderColor: '#CE82FF', shadowColor: '#CE82FF', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 4 },
-  balanceLabel: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 1 },
-  balanceAmount: { fontSize: 34, fontWeight: '900', color: '#0F172A', marginVertical: 8 },
-  balanceSubRow: { flexDirection: 'row', alignItems: 'center' },
-  plChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  lockedArea: { paddingHorizontal: 20, marginBottom: 20 },
+  balanceCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 28, borderWidth: 2, borderColor: '#CE82FF', shadowColor: '#CE82FF', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
+  balanceLabel: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5 },
+  balanceAmount: { fontSize: 36, fontWeight: '900', color: '#0F172A', marginVertical: 10 },
+  balanceFooter: { flexDirection: 'row', alignItems: 'center' },
+  plChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
   plChipText: { fontSize: 11, fontWeight: '900' },
-  cashLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', marginLeft: 12 },
-  tabDeck: { flexDirection: 'row', backgroundColor: '#F8F9FA', marginHorizontal: 20, borderRadius: 16, padding: 4, marginBottom: 15 },
-  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
+  cashLabel: { fontSize: 12, fontWeight: '800', color: '#94A3B8', marginLeft: 15 },
+  tabDeck: { flexDirection: 'row', backgroundColor: '#F8F9FA', marginHorizontal: 20, borderRadius: 18, padding: 4, marginBottom: 15 },
+  tabBtn: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 14 },
   tabBtnActive: { backgroundColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
   tabText: { fontSize: 13, fontWeight: '700', color: '#94A3B8' },
   tabTextActive: { color: '#0F172A' },
-  searchBox: { marginHorizontal: 20, marginBottom: 15, height: 48, backgroundColor: '#F1F5F9', borderRadius: 14, paddingHorizontal: 15, justifyContent: 'center' },
+  searchBox: { marginHorizontal: 20, marginBottom: 15, height: 50, backgroundColor: '#F1F5F9', borderRadius: 16, paddingHorizontal: 15, justifyContent: 'center' },
   searchField: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
-  listPadding: { paddingHorizontal: 20, paddingBottom: 40 },
-  assetCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  logoFrame: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F8F9FA' },
+  listPad: { paddingHorizontal: 20, paddingBottom: 40 },
+  assetCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 24, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  logoFrame: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: '#F8F9FA' },
   logoImage: { width: '100%', height: '100%', resizeMode: 'contain' },
-  avatarBadge: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  avatarBadge: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 11, fontWeight: '900' },
-  assetMain: { flex: 1, marginLeft: 15 },
-  assetTicker: { fontSize: 17, fontWeight: '900', color: '#0F172A' },
-  assetName: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  assetMain: { flex: 1, marginLeft: 16 },
+  assetTicker: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
+  assetName: { fontSize: 12, color: '#64748B', marginTop: 3 },
   assetRight: { alignItems: 'flex-end' },
-  assetPrice: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
-  assetDelta: { fontSize: 12, fontWeight: '800', marginTop: 3 },
-  holdingCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9' },
-  holdingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  holdingTicker: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
-  plBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  assetPrice: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  assetDelta: { fontSize: 12, fontWeight: '800', marginTop: 4 },
+  holdingCard: { backgroundColor: '#FFF', padding: 22, borderRadius: 30, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9' },
+  holdingHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  holdingMain: { flex: 1, marginLeft: 16 },
+  holdingTicker: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
+  holdingName: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  plBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   plBadgeText: { fontSize: 11, fontWeight: '900' },
   holdingGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   gridCell: { flex: 1 },
-  gridLabel: { fontSize: 9, fontWeight: '900', color: '#94A3B8', marginBottom: 4 },
+  gridLabel: { fontSize: 9, fontWeight: '900', color: '#94A3B8', marginBottom: 5 },
   gridValue: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
-  emptyState: { alignItems: 'center', padding: 50 },
-  emptyText: { color: '#94A3B8', fontSize: 14, fontWeight: '700', marginBottom: 20 },
-  emptyBtn: { backgroundColor: '#CE82FF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  emptyBtnText: { color: '#FFF', fontWeight: '900' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-  rewardModal: { width: SCREEN_WIDTH * 0.85, backgroundColor: '#FFF', borderRadius: 32, padding: 25, alignItems: 'center', borderWidth: 2, borderColor: '#CE82FF' },
-  rewardSub: { fontSize: 10, fontWeight: '900', color: '#CE82FF', letterSpacing: 2, marginBottom: 10 },
-  rewardTitle: { fontSize: 24, fontWeight: '900', color: '#111', marginBottom: 30 },
-  streakGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginBottom: 30 },
-  streakNode: { alignItems: 'center', width: 60 },
-  nodeBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F8F9FA', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  nodeBadgeDone: { backgroundColor: '#CE82FF', borderColor: '#CE82FF' },
-  nodeIcon: { fontSize: 16 },
-  nodeLabel: { fontSize: 9, fontWeight: '900', color: '#94A3B8', marginTop: 6 },
-  nextRewardBox: { width: '100%', backgroundColor: '#F8F1FF', padding: 20, borderRadius: 16, marginBottom: 30, alignItems: 'center' },
-  nextRewardLabel: { fontSize: 10, fontWeight: '900', color: '#CE82FF', marginBottom: 5 },
-  nextRewardVal: { fontSize: 18, fontWeight: '900', color: '#CE82FF' },
-  claimBtn: { width: '100%', backgroundColor: '#0F172A', paddingVertical: 16, borderRadius: 30, alignItems: 'center' },
-  claimBtnOff: { opacity: 0.5 },
-  claimBtnText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
-  rewardClose: { marginTop: 15, padding: 10 },
-  rewardCloseText: { color: '#94A3B8', fontWeight: '800', fontSize: 13 },
-  tradeBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  tradeSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 30, paddingBottom: 40 },
-  sheetHandle: { width: 36, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sheetTitle: { fontSize: 28, fontWeight: '900' },
-  sheetClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  sheetRate: { fontSize: 14, color: '#64748B', marginBottom: 25 },
-  inputWrap: { marginBottom: 30 },
-  inputLabel: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 1, marginBottom: 10 },
-  inputField: { fontSize: 36, fontWeight: '900', borderBottomWidth: 2, borderBottomColor: '#CE82FF', paddingVertical: 5 },
-  btnRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  execBtn: { flex: 0.48, paddingVertical: 18, borderRadius: 30, alignItems: 'center' },
-  execBtnText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
+  empty: { alignItems: 'center', padding: 40 },
+  emptyText: { color: '#94A3B8', fontSize: 14, fontWeight: '700' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
+  rewardCard: { width: SCREEN_WIDTH * 0.9, backgroundColor: '#FFF', borderRadius: 40, padding: 30, alignItems: 'center', borderWidth: 3, borderColor: '#CE82FF' },
+  rewardLabel: { fontSize: 10, fontWeight: '900', color: '#CE82FF', letterSpacing: 2, marginBottom: 10 },
+  rewardTitle: { fontSize: 26, fontWeight: '900', color: '#111', marginBottom: 35 },
+  streakRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginBottom: 35 },
+  node: { alignItems: 'center', width: 62 },
+  badge: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F8F9FA', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  badgeD: { backgroundColor: '#CE82FF', borderColor: '#CE82FF' },
+  nodeL: { fontSize: 9, fontWeight: '900', color: '#94A3B8', marginTop: 8 },
+  nextBox: { width: '100%', backgroundColor: '#F8F1FF', padding: 20, borderRadius: 20, marginBottom: 35, alignItems: 'center' },
+  nextL: { fontSize: 11, fontWeight: '900', color: '#CE82FF', marginBottom: 5 },
+  nextV: { fontSize: 22, fontWeight: '900', color: '#CE82FF' },
+  claimB: { width: '100%', backgroundColor: '#0F172A', paddingVertical: 18, borderRadius: 32, alignItems: 'center' },
+  claimBT: { color: '#FFF', fontSize: 17, fontWeight: '900' },
+  closeReward: { marginTop: 20, padding: 10 },
+  closeRewardT: { color: '#94A3B8', fontWeight: '800', fontSize: 13 },
+  sheetBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 35, paddingBottom: 50 },
+  sheetHandle: { width: 40, height: 5, backgroundColor: '#E2E8F0', borderRadius: 10, alignSelf: 'center', marginBottom: 25 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sheetTitle: { fontSize: 32, fontWeight: '900' },
+  sheetX: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  sheetRate: { fontSize: 16, color: '#64748B', marginBottom: 30 },
+  inputBox: { marginBottom: 35 },
+  inputLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 10 },
+  inputF: { fontSize: 44, fontWeight: '900', borderBottomWidth: 2, borderBottomColor: '#CE82FF', paddingVertical: 8 },
+  sheetBtnRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  sheetB: { flex: 0.48, paddingVertical: 20, borderRadius: 32, alignItems: 'center' },
+  sheetBT: { color: '#FFF', fontSize: 17, fontWeight: '900' },
 });
