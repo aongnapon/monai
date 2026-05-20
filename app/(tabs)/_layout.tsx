@@ -6,10 +6,10 @@ import { LogBox, Text, View, StyleSheet } from 'react-native';
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 /**
- * PRINCIPAL ARCHITECT NOTE: Luxury Emoji Navigation System
- * This layout implements a high-fidelity navigation tray using premium emoji assets.
- * We prioritize pure React Native primitives to ensure zero-latency rendering 
- * and absolute consistency across iOS and Android runtimes.
+ * PRINCIPAL ARCHITECT NOTE: High-Intensity Luxury Navigation
+ * This layout forces the operating system to render native emoji assets
+ * at 100% opacity and color intensity regardless of focus state.
+ * This overrides the default Expo Router inactive tinting logic.
  */
 export default function TabLayout() {
   return (
@@ -39,9 +39,9 @@ export default function TabLayout() {
         name="scan"
         options={{
           title: 'Scanner',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={styles.iconContainer}>
-              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🏛️🏦</Text>
+              <Text style={styles.emojiIconFull}>🏛️🏦</Text>
             </View>
           ),
         }}
@@ -52,9 +52,9 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: 'Academy',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={styles.iconContainer}>
-              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🎓</Text>
+              <Text style={styles.emojiIconFull}>🎓</Text>
             </View>
           ),
         }}
@@ -65,9 +65,9 @@ export default function TabLayout() {
         name="portfolio"
         options={{
           title: 'Portfolio',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={styles.iconContainer}>
-              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>👑</Text>
+              <Text style={styles.emojiIconFull}>👑</Text>
             </View>
           ),
         }}
@@ -78,9 +78,9 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={styles.iconContainer}>
-              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🏰</Text>
+              <Text style={styles.emojiIconFull}>🏰</Text>
             </View>
           ),
         }}
@@ -104,9 +104,10 @@ const styles = StyleSheet.create({
     height: 32,
     width: 48,
   },
-  emojiIcon: {
+  emojiIconFull: {
     fontSize: 22,
     textAlign: 'center',
+    opacity: 1, // Force absolute color intensity
     includeFontPadding: false, // Essential for Android vertical centering
     textAlignVertical: 'center',
   },
