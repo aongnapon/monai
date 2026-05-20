@@ -1,16 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LogBox, Text } from 'react-native';
+import { LogBox, Text, View, StyleSheet } from 'react-native';
 
 // Stability Guard
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 /**
- * ARCHITECT NOTE: Institutional Tab Navigation
- * We use a minimalist design with high-contrast active states.
- * Reordered to follow the core user loop: Scan -> Academy -> Portfolio -> Profile.
- * Legacy "History" has been integrated directly into the Scan module.
+ * PRINCIPAL ARCHITECT NOTE: Luxury Emoji Navigation System
+ * This layout implements a high-fidelity navigation tray using premium emoji assets.
+ * We prioritize pure React Native primitives to ensure zero-latency rendering 
+ * and absolute consistency across iOS and Android runtimes.
  */
 export default function TabLayout() {
   return (
@@ -21,8 +20,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#F1F5F9',
-          height: 84,
-          paddingBottom: 24,
+          height: 88,
+          paddingBottom: 28,
           paddingTop: 12,
           elevation: 0,
           shadowOpacity: 0,
@@ -35,13 +34,15 @@ export default function TabLayout() {
         headerShown: false, // Unified header management in individual screens
       }}>
       
-      {/* 1. SCANNER: The primary utility */}
+      {/* 1. SCANNER: Institutional Analytics Core */}
       <Tabs.Screen
         name="scan"
         options={{
           title: 'Scanner',
-          tabBarIcon: ({ color, focused }) => (
-            <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.6 }}>🏛️🏦</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🏛️🏦</Text>
+            </View>
           ),
         }}
       />
@@ -51,41 +52,62 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: 'Academy',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'school' : 'school-outline'} size={24} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🎓</Text>
+            </View>
           ),
         }}
       />
 
-      {/* 3. PORTFOLIO: Institutional Wealth Suite */}
+      {/* 3. PORTFOLIO: Wealth Suite */}
       <Tabs.Screen
         name="portfolio"
         options={{
           title: 'Portfolio',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={24} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>👑</Text>
+            </View>
           ),
         }}
       />
 
-      {/* 4. PROFILE: User Settings */}
+      {/* 4. PROFILE: Institutional Identity */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.iconContainer}>
+              <Text style={[styles.emojiIcon, { opacity: focused ? 1 : 0.5 }]}>🏰</Text>
+            </View>
           ),
         }}
       />
 
-      {/* HIDDEN: Legacy index/learn redirect */}
+      {/* HIDDEN: Legacy redirect support */}
       <Tabs.Screen
         name="index"
         options={{
-          href: null, // Removed from active navigation
+          href: null,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+    width: 48,
+  },
+  emojiIcon: {
+    fontSize: 22,
+    textAlign: 'center',
+    includeFontPadding: false, // Essential for Android vertical centering
+    textAlignVertical: 'center',
+  },
+});
