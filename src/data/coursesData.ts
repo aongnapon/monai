@@ -2,6 +2,7 @@ import { LucideIcon } from 'lucide-react-native';
 
 export interface Slide {
   id: string;
+  type?: 'quiz' | 'info';
   text: string;
   highlightText?: string;
   emoji: string;
@@ -15,6 +16,7 @@ export interface Course {
   chapter: string;
   iconName: string; // Used for Lucide icons
   color: string;
+  style: 'normal' | 'speedrun' | 'boss' | 'treasure';
   slides: Slide[];
 }
 
@@ -29,6 +31,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Technical Analysis',
     iconName: 'BarChart3',
     color: '#34C759',
+    style: 'normal',
     slides: [
       { 
         id: '1-1', 
@@ -76,6 +79,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Risk Management',
     iconName: 'ShieldCheck',
     color: '#0EA5E9',
+    style: 'speedrun',
     slides: [
       { 
         id: '2-1', 
@@ -110,7 +114,7 @@ export const ACADEMY_COURSES: Course[] = [
       { 
         id: '2-5', 
         emoji: '🏆', 
-        text: 'You are no longer a gambler; you are a risk manager. The pink bear is proud of your discipline!', 
+        text: 'You are no longer a gambler; you are a risk manager. Your companion is proud of your discipline!', 
         highlightText: 'Risk Disciplined',
         showMascot: true, 
         mascotAnimation: 'celebrate' 
@@ -123,6 +127,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Crypto Mechanics',
     iconName: 'Zap',
     color: '#F59E0B',
+    style: 'treasure',
     slides: [
       { 
         id: '3-1', 
@@ -170,6 +175,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Technical Analysis',
     iconName: 'Waves',
     color: '#8B5CF6',
+    style: 'boss',
     slides: [
       { 
         id: '4-1', 
@@ -217,6 +223,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Technical Analysis',
     iconName: 'LayoutDashboard',
     color: '#EC4899',
+    style: 'normal',
     slides: [
       { 
         id: '5-1', 
@@ -264,6 +271,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Risk Management',
     iconName: 'Settings',
     color: '#6366F1',
+    style: 'speedrun',
     slides: [
       { 
         id: '6-1', 
@@ -311,6 +319,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Market Mechanics',
     iconName: 'Eye',
     color: '#14B8A6',
+    style: 'boss',
     slides: [
       { 
         id: '7-1', 
@@ -358,6 +367,7 @@ export const ACADEMY_COURSES: Course[] = [
     chapter: 'Risk Management',
     iconName: 'Activity',
     color: '#F97316',
+    style: 'treasure',
     slides: [
       { 
         id: '8-1', 

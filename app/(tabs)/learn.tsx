@@ -5,7 +5,6 @@ import {
   Image,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -13,7 +12,15 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Animated as RNAnimated,
 } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  Easing 
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ACADEMY_COURSES, Course, Slide } from '../../src/data/coursesData';
@@ -31,12 +38,57 @@ import {
 // Stability Guard for SVG Layout warnings
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// REFINED SCALING FOR MAXIMUM BREATHING ROOM
-const NODE_SIZE = 92; 
-const MASCOT_SIZE = 135; 
-const ROW_HEIGHT = 150;
+// MASCOT ASSET REGISTRY
+const MASCOT_REGISTRY: Record<number, { name: string; image: any; side: 'left' | 'right' }> = {
+  0: { name: 'shiba', image: require('../../assets/images/mascots/shiba.png'), side: 'right' },
+  1: { name: 'cat', image: require('../../assets/images/mascots/cat.png'), side: 'left' },
+  2: { name: 'pig', image: require('../../assets/images/mascots/pig.png'), side: 'right' },
+  3: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'left' },
+  4: { name: 'flower', image: require('../../assets/images/mascots/flower.png'), side: 'right' }
+};
+
+// BREATHING IDLE COMPONENT
+const MascotItem = ({ image }: { image: any }) => {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withTiming(1.06, { duration: 1500, easing: Easing.bezier(0.4, 0, 0.6, 1) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.Image
+      source={image}
+      style={[
+        { width: 65, height: 65, resizeMode: 'contain' },
+        animatedStyle
+      ]}
+    />
+  );
+};
+
+// MODERN UI CONSTANTS
+const NODE_SIZE = 70; 
+const ROW_HEIGHT = 110;
+
+const getArchetypeEmoji = (style: string) => {
+  switch (style) {
+    case 'normal': return '📈';
+    case 'speedrun': return '⚡';
+    case 'boss': return '🏆';
+    case 'treasure': return '👑';
+    default: return '📈';
+  }
+};
 
 export default function LearnScreen() {
   const { user } = useAuth();
@@ -59,8 +111,27 @@ export default function LearnScreen() {
   const [isHealthModalVisible, setHealthModalVisible] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
+  const bounceAnim = useRef(new RNAnimated.Value(0)).current;
 
-  // REAL-TIME FIRESTORE CONNECTION WITH GRACEFUL DEFAULTS
+  // BOUNCE ANIMATION FOR ACTIVE TREASURE
+  useEffect(() => {
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(bounceAnim, {
+          toValue: -10,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [bounceAnim]);
+
+  // REAL-TIME FIRESTORE CONNECTION
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -76,7 +147,6 @@ export default function LearnScreen() {
           cashBalance: data.cashBalance ?? 50000,
         });
       } else {
-        // Initialize new profiles
         setDoc(docRef, {
           currentStageIndex: 0,
           currentSlideIndex: 0,
@@ -92,7 +162,6 @@ export default function LearnScreen() {
     return () => unsubscribe();
   }, [user?.uid]);
 
-  // REPAIRED MODAL LOADING PATH
   const handleNodePress = (course: Course) => {
     if (gameState.userHearts <= 0) {
       setHealthModalVisible(true);
@@ -101,11 +170,9 @@ export default function LearnScreen() {
 
     if (pressedNodeId === course.course_id) {
       setPressedNodeId(null);
-      // Immediately reveal modal and set state to prevent freezes
       setSelectedCourse(course);
       setActiveSlide(gameState.currentSlideIndex);
       
-      // Sync scroll position after mount
       setTimeout(() => {
         if (flatListRef.current) {
           flatListRef.current.scrollToIndex({ 
@@ -127,7 +194,6 @@ export default function LearnScreen() {
       setActiveSlide(nextIndex);
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
       
-      // Persistent Progress
       const docRef = doc(db, 'portfolio_v2', user.uid);
       await updateDoc(docRef, { currentSlideIndex: nextIndex });
     } else {
@@ -148,7 +214,6 @@ export default function LearnScreen() {
     }
   };
 
-  // DEBUG TOOLS: HEART INJECTOR
   const injectHearts = async () => {
     if (!user?.uid) return;
     const docRef = doc(db, 'portfolio_v2', user.uid);
@@ -172,7 +237,6 @@ export default function LearnScreen() {
 
   const devBypass = () => {
     setHealthModalVisible(false);
-    // Force open the first available course for layout testing
     const firstCourse = ACADEMY_COURSES[gameState.currentStageIndex] || ACADEMY_COURSES[0];
     setSelectedCourse(firstCourse);
     setActiveSlide(0);
@@ -193,15 +257,16 @@ export default function LearnScreen() {
   };
 
   const renderSlide = ({ item, index }: { item: Slide; index: number }) => {
-    // 3rd Index or Explicit Quiz Type
     const isQuizMode = item.type === 'quiz' || index === 2;
+    const courseIndex = selectedCourse ? ACADEMY_COURSES.findIndex(c => c.course_id === selectedCourse.course_id) : 0;
+    const currentMascot = MASCOT_REGISTRY[courseIndex % 5].image;
 
     if (isQuizMode) {
       return (
         <View style={styles.slideFrame}>
           <View style={styles.quizEngineCard}>
             <Image
-              source={require('../../assets/images/mascots/bear.png')}
+              source={currentMascot}
               style={styles.tutorMascot}
             />
             <Text style={styles.quizQuestionText}>
@@ -230,7 +295,7 @@ export default function LearnScreen() {
           {item.showMascot && (
             <View style={styles.slideMascotContainer}>
               <Image
-                source={require('../../assets/images/mascots/bear.png')}
+                source={currentMascot}
                 style={styles.slideMascot}
               />
             </View>
@@ -250,44 +315,66 @@ export default function LearnScreen() {
     );
   };
 
-  const renderTrailNode = (course: Course | { course_id: string; title: string; isFinal?: boolean }, index: number) => {
+  const renderTrailNode = ({ item: course, index }: { item: Course | any; index: number }) => {
     const isCompleted = index < gameState.currentStageIndex;
     const isActive = index === gameState.currentStageIndex;
     const isLocked = index > gameState.currentStageIndex;
-    const isFinal = 'isFinal' in course;
+    const isFinal = course.course_id === 'final';
     const isPressed = pressedNodeId === course.course_id;
-    const isLeftTrack = index % 2 === 0;
-    const renderLabelBelow = index === 0;
+    const isTreasure = course.style === 'treasure';
+
+    // SNAKE CURVATURE MATH
+    let translateX = 0;
+    if (index % 3 === 1) translateX = -45;
+    if (index % 3 === 2) translateX = 45;
+
+    // DYNAMIC MASCOT LOGIC
+    const mascotData = MASCOT_REGISTRY[index % 5];
+    const shouldShowMascot = index % 2 === 0;
 
     return (
-      <View key={course.course_id} style={styles.nodeRow}>
-        <View style={styles.sideZone}>
-          {!isFinal && isLeftTrack && (
-            <View style={styles.milestoneBox}>
-              <Text style={styles.milestoneLabel}>DAY</Text>
-              <Text style={styles.milestoneValue}>{index + 1}</Text>
-            </View>
-          )}
-          {isActive && !isLeftTrack && (
-            <Image
-              source={require('../../assets/images/mascots/bear.png')}
-              style={[styles.sideMascot, { transform: [{ scaleX: -1 }] }]}
-            />
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        width: '100%', 
+        justifyContent: 'center', 
+        height: ROW_HEIGHT,
+        transform: [{ translateX }]
+      }}>
+        {/* Left Slot */}
+        <View style={{ width: 80, alignItems: 'center', justifyContent: 'center' }}>
+          {shouldShowMascot && mascotData.side === 'left' ? (
+            <MascotItem image={mascotData.image} />
+          ) : (
+            <View style={{ width: 65, height: 65 }} />
           )}
         </View>
 
-        <View style={styles.centerZone}>
-          <View style={styles.nodeAnchor}>
-            {isPressed && (
-              <View style={[
-                styles.floatingLabel, 
-                renderLabelBelow ? styles.labelBelow : styles.labelAbove
-              ]}>
-                <View style={renderLabelBelow ? styles.arrowTop : styles.arrowBottom} />
-                <Text style={styles.floatingLabelText}>{course.title}</Text>
-              </View>
-            )}
+        <View style={styles.nodeAnchor}>
+          {isPressed && (
+            <View style={[styles.floatingLabel, styles.labelAbove]}>
+              <View style={styles.arrowBottom} />
+              <Text style={styles.floatingLabelText}>{course.title}</Text>
+            </View>
+          )}
 
+          {isTreasure ? (
+            <Pressable
+              onPress={() => !isLocked && handleNodePress(course as Course)}
+              style={({ pressed }) => [
+                styles.treasureNode,
+                pressed && { transform: [{ scale: 0.9 }] },
+              ]}
+            >
+              <RNAnimated.Text style={[
+                styles.nodeEmoji, 
+                isActive && { transform: [{ translateY: bounceAnim }] },
+                isLocked && { opacity: 0.5 }
+              ]}>
+                {getArchetypeEmoji(course.style)}
+              </RNAnimated.Text>
+            </Pressable>
+          ) : (
             <Pressable
               onPress={() => !isLocked && !isFinal && handleNodePress(course as Course)}
               style={({ pressed }) => [
@@ -299,31 +386,21 @@ export default function LearnScreen() {
                 pressed && !isLocked && !isFinal && { transform: [{ scale: 0.95 }] },
               ]}
             >
-              {isFinal ? (
-                <MaterialCommunityIcons name="treasure-chest" size={50} color={isLocked ? '#A0A0A0' : '#8B4513'} />
-              ) : isCompleted ? (
-                <MaterialCommunityIcons name="check-bold" size={45} color="#FFF" />
-              ) : isActive ? (
-                <MaterialCommunityIcons name="star" size={45} color="#FFF" />
+              {isCompleted ? (
+                <MaterialCommunityIcons name="check-bold" size={32} color="#FFF" />
               ) : (
-                <MaterialCommunityIcons name="lock" size={40} color="#A0A0A0" />
+                <Text style={styles.nodeEmoji}>{getArchetypeEmoji(course.style || 'normal')}</Text>
               )}
             </Pressable>
-          </View>
+          )}
         </View>
 
-        <View style={styles.sideZone}>
-          {!isFinal && !isLeftTrack && (
-            <View style={styles.milestoneBox}>
-              <Text style={styles.milestoneLabel}>DAY</Text>
-              <Text style={styles.milestoneValue}>{index + 1}</Text>
-            </View>
-          )}
-          {isActive && isLeftTrack && (
-            <Image
-              source={require('../../assets/images/mascots/bear.png')}
-              style={styles.sideMascot}
-            />
+        {/* Right Slot */}
+        <View style={{ width: 80, alignItems: 'center', justifyContent: 'center' }}>
+          {shouldShowMascot && mascotData.side === 'right' ? (
+            <MascotItem image={mascotData.image} />
+          ) : (
+            <View style={{ width: 65, height: 65 }} />
           )}
         </View>
       </View>
@@ -332,9 +409,13 @@ export default function LearnScreen() {
 
   if (loading) return <View style={styles.fullCenter}><ActivityIndicator size="large" color="#CE82FF" /></View>;
 
+  const trailData = [
+    ...ACADEMY_COURSES,
+    { course_id: 'final', title: 'Institutional Reward', style: 'boss' }
+  ];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* VIBRANT STATUS HEADER */}
       <View style={styles.header}>
         <View style={styles.statChip}>
           <MaterialCommunityIcons name="trophy-variant" size={22} color="#FFC800" />
@@ -350,24 +431,25 @@ export default function LearnScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.trailContainer}>
-          {ACADEMY_COURSES.map((course, index) => renderTrailNode(course, index))}
-          {renderTrailNode({ course_id: 'final', title: 'Institutional Reward', isFinal: true }, ACADEMY_COURSES.length)}
-        </View>
-      </ScrollView>
+      <FlatList
+        data={trailData}
+        renderItem={renderTrailNode}
+        keyExtractor={(item) => item.course_id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      />
 
-      {/* DEBUG BUTTON: +5 HEARTS */}
+      {/* DEBUG BUTTON */}
       <Pressable style={styles.debugBtn} onPress={injectHearts}>
         <Text style={styles.debugBtnText}>DEBUG: +5 HEARTS</Text>
       </Pressable>
 
-      {/* HEALTH GATEWAY MODAL (REPLACES FREEZE) */}
+      {/* HEALTH GATEWAY MODAL */}
       <Modal visible={isHealthModalVisible} transparent animationType="fade">
         <View style={styles.gatewayBackdrop}>
           <View style={styles.gatewayCard}>
             <Text style={styles.gatewayTitle}>OUT OF HEARTS</Text>
-            <Image source={require('../../assets/images/mascots/bear.png')} style={styles.gatewayMascot} />
+            <Image source={MASCOT_REGISTRY[gameState.currentStageIndex % 5].image} style={styles.gatewayMascot} />
             <Text style={styles.gatewayBody}>You need more energy to start this module. Recharge using your portfolio cash!</Text>
             
             <View style={styles.gatewayActionRow}>
@@ -429,7 +511,7 @@ export default function LearnScreen() {
       <Modal visible={isVictoryModalVisible} transparent animationType="fade">
         <View style={styles.victoryBackdrop}>
           <View style={styles.victoryCard}>
-            <Image source={require('../../assets/images/mascots/bear.png')} style={styles.victoryMascot} />
+            <Image source={MASCOT_REGISTRY[gameState.currentStageIndex % 5].image} style={styles.victoryMascot} />
             <Text style={styles.victoryHeader}>Stage Conquered</Text>
             <View style={styles.victoryStats}>
               <Text style={styles.statLabel}>XP GAINED</Text>
@@ -451,27 +533,20 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 15, borderBottomWidth: 2, borderBottomColor: '#F2F2F2' },
   statChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statValue: { fontSize: 18, fontWeight: '900', color: '#4B4B4B' },
-  scrollContent: { paddingBottom: 100 },
-  trailContainer: { paddingTop: 20, alignItems: 'center' },
-  nodeRow: { width: SCREEN_WIDTH, height: ROW_HEIGHT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  sideZone: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  centerZone: { width: NODE_SIZE + 40, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { paddingBottom: 100, paddingTop: 40 },
+  nodeRow: { width: SCREEN_WIDTH, height: ROW_HEIGHT, alignItems: 'center', justifyContent: 'center' },
   nodeAnchor: { position: 'relative', width: NODE_SIZE, height: NODE_SIZE, justifyContent: 'center', alignItems: 'center' },
-  milestoneBox: { alignItems: 'center' },
-  milestoneLabel: { fontSize: 10, fontWeight: '900', color: '#D0D0D0' },
-  milestoneValue: { fontSize: 22, fontWeight: '900', color: '#888888' },
-  sideMascot: { width: MASCOT_SIZE, height: MASCOT_SIZE, resizeMode: 'contain' },
   nodeBadge: { width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2, backgroundColor: '#E5E5E5', justifyContent: 'center', alignItems: 'center', borderBottomWidth: 6, borderBottomColor: 'rgba(0,0,0,0.15)', elevation: 6 },
   nodeBadgeCompleted: { backgroundColor: '#58CC02', borderBottomColor: '#46A302' },
   nodeBadgeActive: { backgroundColor: '#CE82FF', borderBottomColor: '#A568CC' },
   nodeBadgeLocked: { backgroundColor: '#E5E5E5', borderBottomColor: '#D0D0D0', opacity: 0.7 },
   nodeBadgeFinal: { backgroundColor: '#FFD700', borderBottomColor: '#D4AF37' },
+  treasureNode: { width: NODE_SIZE, height: NODE_SIZE, justifyContent: 'center', alignItems: 'center' },
+  nodeEmoji: { fontSize: 34, textAlign: 'center' },
   floatingLabel: { position: 'absolute', backgroundColor: '#4B4B4B', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, zIndex: 1000, minWidth: 150, alignItems: 'center' },
   labelAbove: { bottom: NODE_SIZE + 15 },
-  labelBelow: { top: NODE_SIZE + 15 },
   floatingLabelText: { color: '#FFF', fontWeight: '800', fontSize: 13, textAlign: 'center' },
   arrowBottom: { position: 'absolute', bottom: -8, width: 0, height: 0, borderLeftWidth: 8, borderLeftColor: 'transparent', borderRightWidth: 8, borderRightColor: 'transparent', borderTopWidth: 8, borderTopColor: '#4B4B4B' },
-  arrowTop: { position: 'absolute', top: -8, width: 0, height: 0, borderLeftWidth: 8, borderLeftColor: 'transparent', borderLeftColor: 'transparent', borderRightWidth: 8, borderRightColor: 'transparent', borderBottomWidth: 8, borderBottomColor: '#4B4B4B' },
   modalBackdrop: { flex: 1 },
   lessonStage: { flex: 1 },
   lessonTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, gap: 12 },
@@ -487,14 +562,12 @@ const styles = StyleSheet.create({
   slideBody: { fontSize: 17, color: '#FFF', textAlign: 'center', fontWeight: '700' },
   slideActionBtn: { backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 4 },
   slideActionText: { fontSize: 18, fontWeight: '900', color: '#4B4B4B', marginRight: 10 },
-  // QUIZ STYLES
   quizEngineCard: { backgroundColor: '#FFF', borderRadius: 30, padding: 25, alignItems: 'center', flex: 1, marginTop: 20 },
   tutorMascot: { width: 110, height: 110, resizeMode: 'contain', marginBottom: 20 },
   quizQuestionText: { fontSize: 20, fontWeight: '800', color: '#2C3E50', textAlign: 'center', marginBottom: 25 },
   quizOptionDeck: { width: '100%', gap: 10 },
   quizOptionPressable: { backgroundColor: '#F8F9FB', padding: 18, borderRadius: 15, borderWidth: 1, borderColor: '#EEE' },
   quizOptionLabel: { fontSize: 16, fontWeight: '700', color: '#444', textAlign: 'center' },
-  // HEALTH MODAL
   gatewayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   gatewayCard: { backgroundColor: '#FFF', borderRadius: 35, padding: 30, alignItems: 'center', width: '100%', borderWidth: 4, borderColor: '#CE82FF' },
   gatewayTitle: { fontSize: 24, fontWeight: '900', color: '#FF4B4B', marginBottom: 20 },
@@ -506,10 +579,8 @@ const styles = StyleSheet.create({
   devBypassBtn: { backgroundColor: '#34C759' },
   closeGateway: { marginTop: 20, padding: 10 },
   closeGatewayText: { color: '#94A3B8', fontWeight: '800' },
-  // DEBUG TOOL
   debugBtn: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#FF00FF', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 10, elevation: 10 },
   debugBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
-  // VICTORY MODAL
   victoryBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 25 },
   victoryCard: { backgroundColor: '#FFF', borderRadius: 40, padding: 35, alignItems: 'center', width: '100%', borderWidth: 5, borderColor: '#CE82FF' },
   victoryMascot: { width: 140, height: 140, resizeMode: 'contain', marginBottom: 25 },
@@ -520,3 +591,4 @@ const styles = StyleSheet.create({
   continueJourneyBtn: { backgroundColor: '#CE82FF', width: '100%', paddingVertical: 20, borderRadius: 22, alignItems: 'center' },
   continueJourneyText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
 });
+

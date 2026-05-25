@@ -389,7 +389,7 @@ export default function ScanScreen() {
           <>
             <View style={styles.assistantRow}>
               <View style={styles.mascotBadge}>
-                <Image source={require('../../assets/images/mascots/bear.png')} style={styles.bearIcon} />
+                <Image source={require('../../assets/images/mascots/shiba.png')} style={styles.bearIcon} />
                 <View style={styles.processorLabel}>
                   <Text style={styles.processorText}>AI PROCESSOR</Text>
                 </View>
