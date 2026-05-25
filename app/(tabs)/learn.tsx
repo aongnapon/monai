@@ -40,16 +40,38 @@ LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// MASCOT ASSET REGISTRY
+// ─── DESIGN TOKENS ───────────────────────────────────────────
+const THEME = {
+  bg: '#1B1D2A',
+  bgElevated: '#232636',
+  bgCard: '#2A2D3E',
+  accent: '#CE82FF',
+  accentDark: '#A568CC',
+  green: '#58CC02',
+  greenDark: '#46A302',
+  red: '#FF4B4B',
+  orange: '#FF9600',
+  blue: '#1CB0F6',
+  gold: '#FFD700',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#94A3B8',
+  textMuted: '#6B7280',
+  pillBg: 'rgba(255,255,255,0.08)',
+  pillBorder: 'rgba(255,255,255,0.06)',
+  lockedNode: '#3C3F4F',
+  lockedNodeBorder: '#2E3040',
+};
+
+// ─── MASCOT ASSET REGISTRY ───────────────────────────────────
 const MASCOT_REGISTRY: Record<number, { name: string; image: any; side: 'left' | 'right' }> = {
   0: { name: 'shiba', image: require('../../assets/images/mascots/shiba.png'), side: 'right' },
   1: { name: 'cat', image: require('../../assets/images/mascots/cat.png'), side: 'left' },
   2: { name: 'pig', image: require('../../assets/images/mascots/pig.png'), side: 'right' },
   3: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'left' },
-  4: { name: 'flower', image: require('../../assets/images/mascots/flower.png'), side: 'right' }
+  4: { name: 'flower', image: require('../../assets/images/mascots/flower.png'), side: 'right' },
 };
 
-// BREATHING IDLE COMPONENT
+// ─── BREATHING IDLE MASCOT ───────────────────────────────────
 const MascotItem = ({ image }: { image: any }) => {
   const scale = useSharedValue(1);
 
@@ -69,16 +91,18 @@ const MascotItem = ({ image }: { image: any }) => {
     <Animated.Image
       source={image}
       style={[
-        { width: 65, height: 65, resizeMode: 'contain' },
-        animatedStyle
+        { width: 60, height: 60, maxHeight: 65, resizeMode: 'contain' },
+        animatedStyle,
       ]}
     />
   );
 };
 
-// MODERN UI CONSTANTS
-const NODE_SIZE = 70; 
+// ─── LAYOUT CONSTANTS ────────────────────────────────────────
+const NODE_SIZE = 76;
+const NODE_RADIUS = NODE_SIZE / 2;
 const ROW_HEIGHT = 110;
+const CENTER_SLOT_WIDTH = 100;
 
 const getArchetypeEmoji = (style: string) => {
   switch (style) {
@@ -90,11 +114,18 @@ const getArchetypeEmoji = (style: string) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════
+// MAIN SCREEN COMPONENT
+// ═══════════════════════════════════════════════════════════════
 export default function LearnScreen() {
   const { user } = useAuth();
   const db = getFirestore();
 
-  // FIRESTORE GAME LIFECYCLE SYNC
+  // ─── MOCK STATE (hard-coded for visual dev) ──────────────
+  const [streak] = useState(12);
+  const [gems] = useState(500);
+
+  // ─── FIRESTORE GAME LIFECYCLE SYNC ───────────────────────
   const [gameState, setGameState] = useState({
     currentStageIndex: 0,
     currentSlideIndex: 0,
@@ -113,7 +144,7 @@ export default function LearnScreen() {
   const flatListRef = useRef<FlatList>(null);
   const bounceAnim = useRef(new RNAnimated.Value(0)).current;
 
-  // BOUNCE ANIMATION FOR ACTIVE TREASURE
+  // ─── BOUNCE ANIMATION FOR ACTIVE TREASURE ────────────────
   useEffect(() => {
     RNAnimated.loop(
       RNAnimated.sequence([
@@ -131,7 +162,7 @@ export default function LearnScreen() {
     ).start();
   }, [bounceAnim]);
 
-  // REAL-TIME FIRESTORE CONNECTION
+  // ─── REAL-TIME FIRESTORE CONNECTION ──────────────────────
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -162,6 +193,7 @@ export default function LearnScreen() {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  // ─── INTERACTION HANDLERS ────────────────────────────────
   const handleNodePress = (course: Course) => {
     if (gameState.userHearts <= 0) {
       setHealthModalVisible(true);
@@ -256,6 +288,9 @@ export default function LearnScreen() {
     setPressedNodeId(null);
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // SLIDE RENDERER (Lesson Modal Content)
+  // ═══════════════════════════════════════════════════════════
   const renderSlide = ({ item, index }: { item: Slide; index: number }) => {
     const isQuizMode = item.type === 'quiz' || index === 2;
     const courseIndex = selectedCourse ? ACADEMY_COURSES.findIndex(c => c.course_id === selectedCourse.course_id) : 0;
@@ -315,6 +350,9 @@ export default function LearnScreen() {
     );
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // TRAIL NODE RENDERER (Serpentine Path)
+  // ═══════════════════════════════════════════════════════════
   const renderTrailNode = ({ item: course, index }: { item: Course | any; index: number }) => {
     const isCompleted = index < gameState.currentStageIndex;
     const isActive = index === gameState.currentStageIndex;
@@ -323,114 +361,210 @@ export default function LearnScreen() {
     const isPressed = pressedNodeId === course.course_id;
     const isTreasure = course.style === 'treasure';
 
-    // SNAKE CURVATURE MATH
-    let translateX = 0;
-    if (index % 3 === 1) translateX = -45;
-    if (index % 3 === 2) translateX = 45;
+    // SERPENTINE CURVATURE — offset applied to center slot only
+    let centerOffset = 0;
+    if (index % 3 === 1) centerOffset = -50;
+    if (index % 3 === 2) centerOffset = 50;
 
     // DYNAMIC MASCOT LOGIC
     const mascotData = MASCOT_REGISTRY[index % 5];
     const shouldShowMascot = index % 2 === 0;
 
+    // ─── NODE CONTENT FACTORY ────────────────────────────────
+    const renderNodeContent = () => {
+      // TREASURE / MILESTONE NODE
+      if (isTreasure) {
+        return (
+          <Pressable
+            onPress={() => !isLocked && handleNodePress(course as Course)}
+            style={({ pressed }) => [
+              styles.treasureNodeWrap,
+              pressed && { transform: [{ scale: 0.9 }] },
+            ]}
+          >
+            {/* Floor shadow */}
+            <View style={styles.treasureFloorShadow} />
+            <RNAnimated.Text style={[
+              styles.treasureEmoji,
+              isActive && { transform: [{ translateY: bounceAnim }] },
+              isLocked && { opacity: 0.4 },
+            ]}>
+              🎁
+            </RNAnimated.Text>
+          </Pressable>
+        );
+      }
+
+      // COMPLETED NODE
+      if (isCompleted) {
+        return (
+          <Pressable
+            onPress={() => handleNodePress(course as Course)}
+            style={({ pressed }) => [
+              pressed && { transform: [{ scale: 0.95 }] },
+            ]}
+          >
+            <View style={styles.nodeOuter3D_completed}>
+              <View style={styles.nodeInner_completed}>
+                <MaterialCommunityIcons name="check-bold" size={32} color="#FFF" />
+              </View>
+            </View>
+          </Pressable>
+        );
+      }
+
+      // ACTIVE NODE
+      if (isActive && !isFinal) {
+        return (
+          <Pressable
+            onPress={() => handleNodePress(course as Course)}
+            style={({ pressed }) => [
+              pressed && { transform: [{ scale: 0.95 }] },
+            ]}
+          >
+            {/* START pill — absolute inside center slot */}
+            <View style={styles.startPillWrap}>
+              <View style={styles.startPill}>
+                <Text style={styles.startPillText}>START</Text>
+              </View>
+              <View style={styles.startPillArrow} />
+            </View>
+
+            <View style={styles.nodeOuter3D_active}>
+              <View style={styles.nodeInner_active}>
+                <MaterialCommunityIcons name="star-four-points" size={32} color="#FFF" />
+              </View>
+            </View>
+          </Pressable>
+        );
+      }
+
+      // FINAL NODE
+      if (isFinal) {
+        return (
+          <View style={styles.nodeOuter3D_final}>
+            <View style={styles.nodeInner_final}>
+              <Text style={{ fontSize: 34 }}>🏆</Text>
+            </View>
+          </View>
+        );
+      }
+
+      // LOCKED NODE
+      return (
+        <View style={styles.nodeOuter3D_locked}>
+          <View style={styles.nodeInner_locked}>
+            <MaterialCommunityIcons name="lock" size={26} color={THEME.textMuted} />
+          </View>
+        </View>
+      );
+    };
+
+    // ─── 3-COLUMN ROW STRUCTURE ──────────────────────────────
     return (
-      <View style={{ 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        width: '100%', 
-        justifyContent: 'center', 
-        height: ROW_HEIGHT,
-        transform: [{ translateX }]
-      }}>
-        {/* Left Slot */}
-        <View style={{ width: 80, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={styles.pathRow}>
+        {/* LEFT SLOT */}
+        <View style={styles.slotSide}>
           {shouldShowMascot && mascotData.side === 'left' ? (
             <MascotItem image={mascotData.image} />
           ) : (
-            <View style={{ width: 65, height: 65 }} />
+            <View style={styles.slotSpacer} />
           )}
         </View>
 
-        <View style={styles.nodeAnchor}>
+        {/* CENTER SLOT — Lesson Node locked here */}
+        <View style={[styles.slotCenter, { transform: [{ translateX: centerOffset }] }]}>
+          {/* Floating pressed label */}
           {isPressed && (
-            <View style={[styles.floatingLabel, styles.labelAbove]}>
-              <View style={styles.arrowBottom} />
+            <View style={styles.floatingLabel}>
               <Text style={styles.floatingLabelText}>{course.title}</Text>
+              <View style={styles.floatingLabelArrow} />
             </View>
           )}
 
-          {isTreasure ? (
-            <Pressable
-              onPress={() => !isLocked && handleNodePress(course as Course)}
-              style={({ pressed }) => [
-                styles.treasureNode,
-                pressed && { transform: [{ scale: 0.9 }] },
-              ]}
-            >
-              <RNAnimated.Text style={[
-                styles.nodeEmoji, 
-                isActive && { transform: [{ translateY: bounceAnim }] },
-                isLocked && { opacity: 0.5 }
-              ]}>
-                {getArchetypeEmoji(course.style)}
-              </RNAnimated.Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => !isLocked && !isFinal && handleNodePress(course as Course)}
-              style={({ pressed }) => [
-                styles.nodeBadge,
-                isCompleted && styles.nodeBadgeCompleted,
-                isActive && styles.nodeBadgeActive,
-                isLocked && styles.nodeBadgeLocked,
-                isFinal && styles.nodeBadgeFinal,
-                pressed && !isLocked && !isFinal && { transform: [{ scale: 0.95 }] },
-              ]}
-            >
-              {isCompleted ? (
-                <MaterialCommunityIcons name="check-bold" size={32} color="#FFF" />
-              ) : (
-                <Text style={styles.nodeEmoji}>{getArchetypeEmoji(course.style || 'normal')}</Text>
-              )}
-            </Pressable>
-          )}
+          {renderNodeContent()}
         </View>
 
-        {/* Right Slot */}
-        <View style={{ width: 80, alignItems: 'center', justifyContent: 'center' }}>
+        {/* RIGHT SLOT */}
+        <View style={styles.slotSide}>
           {shouldShowMascot && mascotData.side === 'right' ? (
             <MascotItem image={mascotData.image} />
           ) : (
-            <View style={{ width: 65, height: 65 }} />
+            <View style={styles.slotSpacer} />
           )}
         </View>
       </View>
     );
   };
 
-  if (loading) return <View style={styles.fullCenter}><ActivityIndicator size="large" color="#CE82FF" /></View>;
+  // ═══════════════════════════════════════════════════════════
+  // LOADING STATE
+  // ═══════════════════════════════════════════════════════════
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.fullCenter]}>
+        <ActivityIndicator size="large" color={THEME.accent} />
+      </View>
+    );
+  }
 
   const trailData = [
     ...ACADEMY_COURSES,
-    { course_id: 'final', title: 'Institutional Reward', style: 'boss' }
+    { course_id: 'final', title: 'Institutional Reward', style: 'boss' },
   ];
 
+  const currentCourse = ACADEMY_COURSES[gameState.currentStageIndex];
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.statChip}>
-          <MaterialCommunityIcons name="trophy-variant" size={22} color="#FFC800" />
-          <Text style={styles.statValue}>{gameState.currentStageIndex}</Text>
+
+      {/* ─── TOP STATUS BAR ───────────────────────────────── */}
+      <View style={styles.statusBar}>
+        {/* Left: Flag + Level */}
+        <View style={styles.statusPill}>
+          <Text style={styles.flagEmoji}>🇫🇷</Text>
         </View>
-        <View style={styles.statChip}>
-          <MaterialCommunityIcons name="heart" size={22} color="#FF4B4B" />
-          <Text style={styles.statValue}>{gameState.userHearts}</Text>
+
+        {/* Center-Left: Flame + Streak */}
+        <View style={styles.statusPill}>
+          <MaterialCommunityIcons name="fire" size={20} color={THEME.orange} />
+          <Text style={styles.statusPillText}>{streak}</Text>
         </View>
-        <View style={styles.statChip}>
-          <MaterialCommunityIcons name="star" size={22} color="#FFD700" />
-          <Text style={styles.statValue}>{gameState.userStars}</Text>
+
+        {/* Center-Right: Gem + Balance */}
+        <View style={styles.statusPill}>
+          <MaterialCommunityIcons name="diamond-stone" size={20} color={THEME.blue} />
+          <Text style={styles.statusPillText}>{gems}</Text>
+        </View>
+
+        {/* Right: Heart + Lives */}
+        <View style={styles.statusPill}>
+          <MaterialCommunityIcons name="heart" size={20} color={THEME.red} />
+          <Text style={styles.statusPillText}>
+            {gameState.userHearts > 99 ? '∞' : gameState.userHearts}
+          </Text>
         </View>
       </View>
 
+      {/* ─── UNIT HEADER CARD ─────────────────────────────── */}
+      <View style={styles.unitHeaderCard}>
+        <View style={styles.unitHeaderLeft}>
+          <Text style={styles.unitHeaderLabel}>
+            SECTION 1, UNIT {gameState.currentStageIndex + 1}
+          </Text>
+          <Text style={styles.unitHeaderTitle}>
+            {currentCourse?.chapter || 'Technical Analysis'}
+          </Text>
+        </View>
+        <Pressable style={styles.unitHeaderBtn}>
+          <MaterialCommunityIcons name="notebook-outline" size={28} color="#FFF" />
+        </Pressable>
+      </View>
+
+      {/* ─── SERPENTINE PATH ──────────────────────────────── */}
       <FlatList
         data={trailData}
         renderItem={renderTrailNode}
@@ -439,12 +573,12 @@ export default function LearnScreen() {
         contentContainerStyle={styles.scrollContent}
       />
 
-      {/* DEBUG BUTTON */}
+      {/* ─── DEBUG BUTTON ─────────────────────────────────── */}
       <Pressable style={styles.debugBtn} onPress={injectHearts}>
         <Text style={styles.debugBtnText}>DEBUG: +5 HEARTS</Text>
       </Pressable>
 
-      {/* HEALTH GATEWAY MODAL */}
+      {/* ─── HEALTH GATEWAY MODAL ─────────────────────────── */}
       <Modal visible={isHealthModalVisible} transparent animationType="fade">
         <View style={styles.gatewayBackdrop}>
           <View style={styles.gatewayCard}>
@@ -468,7 +602,7 @@ export default function LearnScreen() {
         </View>
       </Modal>
 
-      {/* LESSON MODAL OVERLAY */}
+      {/* ─── LESSON MODAL OVERLAY ─────────────────────────── */}
       <Modal visible={!!selectedCourse} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={[styles.lessonStage, { backgroundColor: selectedCourse?.color || '#5865F2' }]}>
@@ -507,7 +641,7 @@ export default function LearnScreen() {
         </View>
       </Modal>
 
-      {/* VICTORY MODAL */}
+      {/* ─── VICTORY MODAL ────────────────────────────────── */}
       <Modal visible={isVictoryModalVisible} transparent animationType="fade">
         <View style={styles.victoryBackdrop}>
           <View style={styles.victoryCard}>
@@ -527,68 +661,521 @@ export default function LearnScreen() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  fullCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 15, borderBottomWidth: 2, borderBottomColor: '#F2F2F2' },
-  statChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statValue: { fontSize: 18, fontWeight: '900', color: '#4B4B4B' },
-  scrollContent: { paddingBottom: 100, paddingTop: 40 },
-  nodeRow: { width: SCREEN_WIDTH, height: ROW_HEIGHT, alignItems: 'center', justifyContent: 'center' },
-  nodeAnchor: { position: 'relative', width: NODE_SIZE, height: NODE_SIZE, justifyContent: 'center', alignItems: 'center' },
-  nodeBadge: { width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2, backgroundColor: '#E5E5E5', justifyContent: 'center', alignItems: 'center', borderBottomWidth: 6, borderBottomColor: 'rgba(0,0,0,0.15)', elevation: 6 },
-  nodeBadgeCompleted: { backgroundColor: '#58CC02', borderBottomColor: '#46A302' },
-  nodeBadgeActive: { backgroundColor: '#CE82FF', borderBottomColor: '#A568CC' },
-  nodeBadgeLocked: { backgroundColor: '#E5E5E5', borderBottomColor: '#D0D0D0', opacity: 0.7 },
-  nodeBadgeFinal: { backgroundColor: '#FFD700', borderBottomColor: '#D4AF37' },
-  treasureNode: { width: NODE_SIZE, height: NODE_SIZE, justifyContent: 'center', alignItems: 'center' },
-  nodeEmoji: { fontSize: 34, textAlign: 'center' },
-  floatingLabel: { position: 'absolute', backgroundColor: '#4B4B4B', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, zIndex: 1000, minWidth: 150, alignItems: 'center' },
-  labelAbove: { bottom: NODE_SIZE + 15 },
-  floatingLabelText: { color: '#FFF', fontWeight: '800', fontSize: 13, textAlign: 'center' },
-  arrowBottom: { position: 'absolute', bottom: -8, width: 0, height: 0, borderLeftWidth: 8, borderLeftColor: 'transparent', borderRightWidth: 8, borderRightColor: 'transparent', borderTopWidth: 8, borderTopColor: '#4B4B4B' },
+
+  // ─── ROOT ──────────────────────────────────────────────────
+  container: {
+    flex: 1,
+    backgroundColor: THEME.bg,
+  },
+  fullCenter: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ─── TOP STATUS BAR ───────────────────────────────────────
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: THEME.bg,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.pillBg,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: THEME.pillBorder,
+    gap: 4,
+  },
+  flagEmoji: {
+    fontSize: 18,
+  },
+  statusPillText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: THEME.textPrimary,
+  },
+
+  // ─── UNIT HEADER CARD ─────────────────────────────────────
+  unitHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: THEME.green,
+    borderRadius: 16,
+  },
+  unitHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  unitHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  unitHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  unitHeaderBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ─── SERPENTINE PATH ──────────────────────────────────────
+  scrollContent: {
+    paddingBottom: 100,
+    paddingTop: 24,
+  },
+  pathRow: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: ROW_HEIGHT,
+    marginVertical: 8,
+  },
+  slotSide: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotCenter: {
+    width: CENTER_SLOT_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotSpacer: {
+    width: 60,
+    height: 60,
+  },
+
+  // ─── NODE DESIGNS ─────────────────────────────────────────
+  // Active node — 3D pressed-button
+  nodeOuter3D_active: {
+    width: NODE_SIZE,
+    height: NODE_SIZE + 6,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.accentDark,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  nodeInner_active: {
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    elevation: 8,
+    shadowColor: THEME.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+
+  // Completed node — green checkmark
+  nodeOuter3D_completed: {
+    width: NODE_SIZE,
+    height: NODE_SIZE + 6,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.greenDark,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  nodeInner_completed: {
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    elevation: 6,
+  },
+
+  // Locked node — grey with lock
+  nodeOuter3D_locked: {
+    width: NODE_SIZE,
+    height: NODE_SIZE + 6,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.lockedNodeBorder,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    opacity: 0.7,
+  },
+  nodeInner_locked: {
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.lockedNode,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.15)',
+  },
+
+  // Final / boss node — gold
+  nodeOuter3D_final: {
+    width: NODE_SIZE,
+    height: NODE_SIZE + 6,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: '#D4AF37',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  nodeInner_final: {
+    width: NODE_SIZE,
+    height: NODE_SIZE,
+    borderRadius: NODE_RADIUS,
+    backgroundColor: THEME.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 6,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    elevation: 8,
+  },
+
+  // Treasure / chest node
+  treasureNodeWrap: {
+    width: NODE_SIZE + 10,
+    height: NODE_SIZE + 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  treasureFloorShadow: {
+    position: 'absolute',
+    bottom: 2,
+    width: 60,
+    height: 16,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  treasureEmoji: {
+    fontSize: 42,
+    textAlign: 'center',
+  },
+
+  // START pill floating label
+  startPillWrap: {
+    position: 'absolute',
+    top: -32,
+    alignSelf: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  startPill: {
+    backgroundColor: THEME.green,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  startPillText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  startPillArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightWidth: 6,
+    borderRightColor: 'transparent',
+    borderTopWidth: 6,
+    borderTopColor: THEME.green,
+  },
+
+  // Floating pressed label (title tooltip)
+  floatingLabel: {
+    position: 'absolute',
+    bottom: NODE_SIZE + 20,
+    backgroundColor: THEME.bgCard,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    zIndex: 1000,
+    minWidth: 150,
+    alignItems: 'center',
+    alignSelf: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  floatingLabelText: {
+    color: THEME.textPrimary,
+    fontWeight: '800',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  floatingLabelArrow: {
+    position: 'absolute',
+    bottom: -8,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightWidth: 8,
+    borderRightColor: 'transparent',
+    borderTopWidth: 8,
+    borderTopColor: THEME.bgCard,
+  },
+
+  // ─── LESSON MODAL ─────────────────────────────────────────
   modalBackdrop: { flex: 1 },
   lessonStage: { flex: 1 },
-  lessonTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, gap: 12 },
-  progressBarBg: { flex: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#FFFFFF', borderRadius: 6 },
+  lessonTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    gap: 12,
+  },
+  progressBarBg: {
+    flex: 1,
+    height: 12,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+  },
   exitBtn: { padding: 4 },
-  slideFrame: { width: SCREEN_WIDTH, paddingHorizontal: 30, paddingTop: 5, paddingBottom: 30, justifyContent: 'space-between', flex: 1 },
-  slideContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  slideMascotContainer: { marginBottom: 10, width: 130, height: 130 },
-  slideMascot: { width: '100%', height: '100%', resizeMode: 'contain' },
+  slideFrame: {
+    width: SCREEN_WIDTH,
+    paddingHorizontal: 30,
+    paddingTop: 5,
+    paddingBottom: 30,
+    justifyContent: 'space-between',
+    flex: 1,
+  },
+  slideContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  slideMascotContainer: {
+    marginBottom: 10,
+    width: 130,
+    height: 130,
+  },
+  slideMascot: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
   slideEmoji: { fontSize: 60, marginBottom: 10 },
-  slideHighlight: { fontSize: 24, fontWeight: '900', color: '#FFF', textAlign: 'center', marginBottom: 8 },
-  slideBody: { fontSize: 17, color: '#FFF', textAlign: 'center', fontWeight: '700' },
-  slideActionBtn: { backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 4 },
-  slideActionText: { fontSize: 18, fontWeight: '900', color: '#4B4B4B', marginRight: 10 },
-  quizEngineCard: { backgroundColor: '#FFF', borderRadius: 30, padding: 25, alignItems: 'center', flex: 1, marginTop: 20 },
-  tutorMascot: { width: 110, height: 110, resizeMode: 'contain', marginBottom: 20 },
-  quizQuestionText: { fontSize: 20, fontWeight: '800', color: '#2C3E50', textAlign: 'center', marginBottom: 25 },
+  slideHighlight: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  slideBody: {
+    fontSize: 17,
+    color: '#FFF',
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  slideActionBtn: {
+    backgroundColor: '#FFF',
+    paddingVertical: 16,
+    borderRadius: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+  },
+  slideActionText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#4B4B4B',
+    marginRight: 10,
+  },
+
+  // ─── QUIZ ENGINE ──────────────────────────────────────────
+  quizEngineCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 30,
+    padding: 25,
+    alignItems: 'center',
+    flex: 1,
+    marginTop: 20,
+  },
+  tutorMascot: {
+    width: 110,
+    height: 110,
+    resizeMode: 'contain',
+    marginBottom: 20,
+  },
+  quizQuestionText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2C3E50',
+    textAlign: 'center',
+    marginBottom: 25,
+  },
   quizOptionDeck: { width: '100%', gap: 10 },
-  quizOptionPressable: { backgroundColor: '#F8F9FB', padding: 18, borderRadius: 15, borderWidth: 1, borderColor: '#EEE' },
-  quizOptionLabel: { fontSize: 16, fontWeight: '700', color: '#444', textAlign: 'center' },
-  gatewayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  gatewayCard: { backgroundColor: '#FFF', borderRadius: 35, padding: 30, alignItems: 'center', width: '100%', borderWidth: 4, borderColor: '#CE82FF' },
-  gatewayTitle: { fontSize: 24, fontWeight: '900', color: '#FF4B4B', marginBottom: 20 },
-  gatewayMascot: { width: 120, height: 120, resizeMode: 'contain', marginBottom: 20 },
-  gatewayBody: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 30, fontWeight: '600' },
+  quizOptionPressable: {
+    backgroundColor: '#F8F9FB',
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  quizOptionLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#444',
+    textAlign: 'center',
+  },
+
+  // ─── HEALTH GATEWAY MODAL ─────────────────────────────────
+  gatewayBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  gatewayCard: {
+    backgroundColor: THEME.bgElevated,
+    borderRadius: 35,
+    padding: 30,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 3,
+    borderColor: THEME.accent,
+  },
+  gatewayTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: THEME.red,
+    marginBottom: 20,
+  },
+  gatewayMascot: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+    marginBottom: 20,
+  },
+  gatewayBody: {
+    fontSize: 16,
+    color: THEME.textSecondary,
+    textAlign: 'center',
+    marginBottom: 30,
+    fontWeight: '600',
+  },
   gatewayActionRow: { width: '100%', gap: 12 },
-  gatewayActionBtn: { backgroundColor: '#CE82FF', paddingVertical: 16, borderRadius: 18, alignItems: 'center' },
-  gatewayActionText: { color: '#FFF', fontSize: 15, fontWeight: '900' },
-  devBypassBtn: { backgroundColor: '#34C759' },
+  gatewayActionBtn: {
+    backgroundColor: THEME.accent,
+    paddingVertical: 16,
+    borderRadius: 18,
+    alignItems: 'center',
+  },
+  gatewayActionText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  devBypassBtn: { backgroundColor: THEME.green },
   closeGateway: { marginTop: 20, padding: 10 },
-  closeGatewayText: { color: '#94A3B8', fontWeight: '800' },
-  debugBtn: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#FF00FF', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 10, elevation: 10 },
-  debugBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
-  victoryBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 25 },
-  victoryCard: { backgroundColor: '#FFF', borderRadius: 40, padding: 35, alignItems: 'center', width: '100%', borderWidth: 5, borderColor: '#CE82FF' },
-  victoryMascot: { width: 140, height: 140, resizeMode: 'contain', marginBottom: 25 },
-  victoryHeader: { fontSize: 30, fontWeight: '900', color: '#2C3E50', marginBottom: 15, fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium' },
+  closeGatewayText: { color: THEME.textMuted, fontWeight: '800' },
+
+  // ─── DEBUG BUTTON ─────────────────────────────────────────
+  debugBtn: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    backgroundColor: '#FF00FF',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 10,
+    elevation: 10,
+  },
+  debugBtnText: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+
+  // ─── VICTORY MODAL ────────────────────────────────────────
+  victoryBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 25,
+  },
+  victoryCard: {
+    backgroundColor: THEME.bgElevated,
+    borderRadius: 40,
+    padding: 35,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 4,
+    borderColor: THEME.accent,
+  },
+  victoryMascot: {
+    width: 140,
+    height: 140,
+    resizeMode: 'contain',
+    marginBottom: 25,
+  },
+  victoryHeader: {
+    fontSize: 30,
+    fontWeight: '900',
+    color: THEME.textPrimary,
+    marginBottom: 15,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   victoryStats: { alignItems: 'center', marginBottom: 35 },
-  statLabel: { fontSize: 12, fontWeight: '900', color: '#94A3B8', marginBottom: 5 },
-  statVal: { fontSize: 24, fontWeight: '900', color: '#FFD700' },
-  continueJourneyBtn: { backgroundColor: '#CE82FF', width: '100%', paddingVertical: 20, borderRadius: 22, alignItems: 'center' },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: THEME.textSecondary,
+    marginBottom: 5,
+  },
+  statVal: { fontSize: 24, fontWeight: '900', color: THEME.gold },
+  continueJourneyBtn: {
+    backgroundColor: THEME.accent,
+    width: '100%',
+    paddingVertical: 20,
+    borderRadius: 22,
+    alignItems: 'center',
+  },
   continueJourneyText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
 });
-

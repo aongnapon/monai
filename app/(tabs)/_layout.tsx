@@ -1,48 +1,34 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LogBox, Text, View, StyleSheet } from 'react-native';
+import { LogBox, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // Stability Guard
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 /**
- * PRINCIPAL ARCHITECT NOTE: High-Intensity Luxury Navigation
- * This layout forces the operating system to render native emoji assets
- * at 100% opacity and color intensity regardless of focus state.
- * This overrides the default Expo Router inactive tinting logic.
+ * PREMIUM DARK TAB BAR
+ * Crisp dark background with uniform vector icons.
+ * Locked to screen floor with thin top border separator.
  */
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#0F172A', // Institutional Dark Blue
-        tabBarInactiveTintColor: '#94A3B8', // Soft Slate
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#F1F5F9',
-          height: 88,
-          paddingBottom: 28,
-          paddingTop: 12,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          marginTop: -4,
-        },
-        headerShown: false, // Unified header management in individual screens
+        tabBarActiveTintColor: '#FFFFFF',
+        tabBarInactiveTintColor: '#6B7280',
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        headerShown: false,
       }}>
-      
+
       {/* 1. SCANNER: Institutional Analytics Core */}
       <Tabs.Screen
         name="scan"
         options={{
-          title: 'Scanner',
-          tabBarIcon: () => (
-            <View style={styles.iconContainer}>
-              <Text style={styles.emojiIconFull}>🏛️🏦</Text>
-            </View>
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" size={26} color={color} />
           ),
         }}
       />
@@ -52,10 +38,8 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: 'Academy',
-          tabBarIcon: () => (
-            <View style={styles.iconContainer}>
-              <Text style={styles.emojiIconFull}>🎓</Text>
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="dumbbell" size={26} color={color} />
           ),
         }}
       />
@@ -65,10 +49,8 @@ export default function TabLayout() {
         name="portfolio"
         options={{
           title: 'Portfolio',
-          tabBarIcon: () => (
-            <View style={styles.iconContainer}>
-              <Text style={styles.emojiIconFull}>👑</Text>
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="video" size={26} color={color} />
           ),
         }}
       />
@@ -78,10 +60,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: () => (
-            <View style={styles.iconContainer}>
-              <Text style={styles.emojiIconFull}>🏰</Text>
-            </View>
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" size={26} color={color} />
           ),
         }}
       />
@@ -98,17 +78,19 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 32,
-    width: 48,
+  tabBar: {
+    backgroundColor: '#1B1D2A',
+    borderTopWidth: 1,
+    borderTopColor: '#2A2D3E',
+    height: 72,
+    paddingBottom: 10,
+    paddingTop: 8,
+    elevation: 0,
+    shadowOpacity: 0,
   },
-  emojiIconFull: {
-    fontSize: 22,
-    textAlign: 'center',
-    opacity: 1, // Force absolute color intensity
-    includeFontPadding: false, // Essential for Android vertical centering
-    textAlignVertical: 'center',
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });
