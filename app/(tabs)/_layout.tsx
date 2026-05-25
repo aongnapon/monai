@@ -5,8 +5,8 @@ import { LogBox, StyleSheet, Text, View } from 'react-native';
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 
 const TabEmoji = ({ emoji, focused }: { emoji: string; focused: boolean }) => (
-  <View style={{ opacity: focused ? 1 : 0.5 }}>
-    <Text style={{ fontSize: 24 }}>{emoji}</Text>
+  <View style={{ opacity: focused ? 1 : 0.6 }}>
+    <Text style={{ fontSize: 26, color: 'white' }}>{emoji}</Text>
   </View>
 );
 

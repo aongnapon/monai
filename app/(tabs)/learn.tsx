@@ -318,10 +318,6 @@ export default function LearnScreen() {
 
     // ── SINE-WAVE OFFSET ──────────────────────────────────
     const horizontalOffset = getSineOffset(index);
-    const mascotOnRight    = horizontalOffset < 0; // node went left → mascot goes right
-
-    const mascotData       = MASCOT_REGISTRY[index % 5];
-    const showMascot       = index % 2 === 0 && !isFinal;
 
     // ── NODE CONTENT ──────────────────────────────────────
     const NodeContent = () => {
@@ -417,18 +413,6 @@ export default function LearnScreen() {
           )}
 
           <NodeContent />
-
-          {/* Mascot — absolutely coupled to node, side flips with offset direction */}
-          {showMascot && (
-            <View
-              style={[
-                styles.mascotAnchor,
-                mascotOnRight ? { right: -90 } : { left: -90 },
-              ]}
-            >
-              <MascotItem image={mascotData.image} />
-            </View>
-          )}
         </View>
       </View>
     );
@@ -687,20 +671,6 @@ const styles = StyleSheet.create({
     // Give it enough breathing room for the node and mascot on sides
     width: NODE_SIZE,
     height: NODE_SIZE,
-  },
-
-  /**
-   * mascotAnchor — absolute, vertically centred beside the node.
-   * `left: -90` or `right: -90` is set inline based on offset direction.
-   */
-  mascotAnchor: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -40, // half of mascot height (80/2) to truly centre
-    width: 80,
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 
   // ─── NODE DESIGNS ─────────────────────────────────────────
@@ -983,6 +953,19 @@ const styles = StyleSheet.create({
   devBypassBtn:      { backgroundColor: THEME.green },
   closeGateway:      { marginTop: 20, padding: 10 },
   closeGatewayText:  { color: THEME.textMuted, fontWeight: '800' },
+
+  // ─── DEBUG BUTTON ─────────────────────────────────────────
+  debugBtn: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    backgroundColor: '#FF00FF',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 10,
+    elevation: 10,
+  },
+  debugBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
 
   // ─── VICTORY MODAL ────────────────────────────────────────
   victoryBackdrop: {
