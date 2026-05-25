@@ -1,9 +1,14 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LogBox, StyleSheet } from 'react-native';
+import { LogBox, StyleSheet, Text, View } from 'react-native';
 
 LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
+
+const TabEmoji = ({ emoji, focused }: { emoji: string; focused: boolean }) => (
+  <View style={{ opacity: focused ? 1 : 0.5 }}>
+    <Text style={{ fontSize: 24 }}>{emoji}</Text>
+  </View>
+);
 
 export default function TabLayout() {
   return (
@@ -19,8 +24,8 @@ export default function TabLayout() {
         name="scan"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="home" size={26} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabEmoji emoji="🏛️" focused={focused} />
           ),
         }}
       />
@@ -28,8 +33,8 @@ export default function TabLayout() {
         name="learn"
         options={{
           title: 'Academy',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="dumbbell" size={26} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabEmoji emoji="🎓" focused={focused} />
           ),
         }}
       />
@@ -37,8 +42,8 @@ export default function TabLayout() {
         name="portfolio"
         options={{
           title: 'Portfolio',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="video" size={26} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabEmoji emoji="👑" focused={focused} />
           ),
         }}
       />
@@ -46,8 +51,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="account" size={26} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabEmoji emoji="🏰" focused={focused} />
           ),
         }}
       />
