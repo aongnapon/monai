@@ -70,7 +70,7 @@ const MASCOT_REGISTRY: Record<
   1: { name: 'cat', image: require('../../assets/images/mascots/cat.png'), side: 'left' },
   2: { name: 'pig', image: require('../../assets/images/mascots/pig.png'), side: 'right' },
   3: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'left' },
-  4: { name: 'flower', image: require('../../assets/images/mascots/flower.png'), side: 'right' },
+  4: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'right' },
 };
 
 // ─── SINE-WAVE CONSTANTS ──────────────────────────────────────
@@ -179,10 +179,7 @@ export default function LearnScreen() {
 
   // ─── INTERACTION HANDLERS ─────────────────────────────────
   const handleNodePress = (course: Course) => {
-    if (gameState.userHearts <= 0) {
-      setHealthModalVisible(true);
-      return;
-    }
+    // FORCE FREE ACCESS: Bypass heart restriction
     if (pressedNodeId === course.course_id) {
       setPressedNodeId(null);
       setSelectedCourse(course);
@@ -310,9 +307,7 @@ export default function LearnScreen() {
     );
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // TRAIL NODE RENDERER — sine-wave serpentine path
-  // ═══════════════════════════════════════════════════════════
+  // ─── TRAIL NODE RENDERER — sine-wave serpentine path ──────
   const renderTrailNode = ({ item: course, index }: { item: Course | any; index: number }) => {
     const isCompleted = index < gameState.currentStageIndex;
     const isActive    = index === gameState.currentStageIndex;
@@ -373,14 +368,6 @@ export default function LearnScreen() {
             onPress={() => handleNodePress(course as Course)}
             style={({ pressed }) => [pressed && { transform: [{ scale: 0.95 }] }]}
           >
-            {/* START badge — absolutely positioned directly above node, tracks with translateX */}
-            <View style={styles.startPillWrap}>
-              <View style={styles.startPill}>
-                <Text style={styles.startPillText}>START</Text>
-              </View>
-              <View style={styles.startPillArrow} />
-            </View>
-
             <View style={styles.nodeOuter3D_active}>
               <View style={styles.nodeInner_active}>
                 <MaterialCommunityIcons name="star-four-points" size={32} color="#FFF" />
@@ -513,11 +500,6 @@ export default function LearnScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       />
-
-      {/* ─── DEBUG BUTTON ──────────────────────────────────── */}
-      <Pressable style={styles.debugBtn} onPress={injectHearts}>
-        <Text style={styles.debugBtnText}>DEBUG: +5 HEARTS</Text>
-      </Pressable>
 
       {/* ─── HEALTH GATEWAY MODAL ──────────────────────────── */}
       <Modal visible={isHealthModalVisible} transparent animationType="fade">
@@ -702,7 +684,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    // Give it enough breathing room for the START badge above and mascot on sides
+    // Give it enough breathing room for the node and mascot on sides
     width: NODE_SIZE,
     height: NODE_SIZE,
   },
@@ -819,41 +801,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   treasureEmoji: { fontSize: 42, textAlign: 'center' },
-
-  // ─── START BADGE ──────────────────────────────────────────
-  /**
-   * Absolutely positioned above the node — it naturally inherits translateX
-   * from its parent nodeWrapper, so it tracks perfectly as the node weaves.
-   */
-  startPillWrap: {
-    position: 'absolute',
-    top: -35,
-    alignSelf: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  startPill: {
-    backgroundColor: THEME.green,
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  startPillText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  startPillArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightWidth: 6,
-    borderRightColor: 'transparent',
-    borderTopWidth: 6,
-    borderTopColor: THEME.green,
-  },
 
   // ─── TOOLTIP (pressed title) ──────────────────────────────
   floatingLabel: {
@@ -1036,19 +983,6 @@ const styles = StyleSheet.create({
   devBypassBtn:      { backgroundColor: THEME.green },
   closeGateway:      { marginTop: 20, padding: 10 },
   closeGatewayText:  { color: THEME.textMuted, fontWeight: '800' },
-
-  // ─── DEBUG BUTTON ─────────────────────────────────────────
-  debugBtn: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    backgroundColor: '#FF00FF',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 10,
-    elevation: 10,
-  },
-  debugBtnText: { color: '#FFF', fontWeight: '900', fontSize: 12 },
 
   // ─── VICTORY MODAL ────────────────────────────────────────
   victoryBackdrop: {
