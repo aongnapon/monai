@@ -15,20 +15,22 @@ import {
   CheckCircle2,
   CloudOff,
   Scan,
-  XCircle,
   ShieldCheck,
-  Target
+  Target,
+  XCircle
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   Image,
   LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   UIManager,
@@ -42,36 +44,73 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-/**
- * INSTITUTIONAL MODEL LOCK: GEMINI 3.1 FLASH-LITE
- */
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ 
-  model: "gemini-3.1-flash-lite",
-  systemInstruction: "You are a Senior Multi-Modal Financial AI Architect. Analyze financial charts and return STRICT JSON. No markdown blocks."
+// ─── PALETTE ──────────────────────────────────────────────────
+const C = {
+  bg:           '#F7F8FA',
+  surface:      '#FFFFFF',
+  surfaceAlt:   '#F0F2F5',
+  border:       '#E8ECF0',
+  borderMuted:  '#F0F2F5',
+  accent:       '#3B6EF6',          // electric indigo
+  accentLight:  'rgba(59,110,246,0.08)',
+  accentMid:    'rgba(59,110,246,0.18)',
+  green:        '#10B981',
+  greenLight:   'rgba(16,185,129,0.10)',
+  red:          '#EF4444',
+  redLight:     'rgba(239,68,68,0.10)',
+  amber:        '#F59E0B',
+  text:         '#0F172A',
+  textSub:      '#64748B',
+  textMuted:    '#A0AEC0',
+  charcoal:     '#1E2433',
+  charcoalDark: '#141924',
+};
+
+// ─── API ───────────────────────────────────────────────────────
+const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+const genAI   = new GoogleGenerativeAI(API_KEY);
+const model   = genAI.getGenerativeModel({
+  model: 'gemini-3.1-flash-lite',
+  systemInstruction:
+    'You are a Senior Multi-Modal Financial AI Architect. Analyze financial charts and return STRICT JSON. No markdown blocks.',
 });
 
-/**
- * TWIN SCANNER MODULE CONFIGURATION
- */
+// ─── SCAN TOOLS ────────────────────────────────────────────────
 const SCAN_TOOLS = [
   {
-    id: 'patterns',
-    title: 'Federal Reserve Expert Analysis',
-    desc: 'Scan for Candlestick, Breakouts & Channel setups',
+    id:    'federal',
+    title: 'Federal Macro-Pulse AI',
+    desc:  'Scans FOMC transcripts, Federal Reserve interest rate projections, and central bank liquidity indicators.',
     emoji: '🏛️',
-    color: '#1A365D', // Institutional Navy
-    focus: 'Japanese candlestick patterns, breakout channels, and geometric price structures'
+    tag:   'MACRO',
+    tagColor: C.accent,
+    tagBg:    C.accentLight,
+    color: '#1A365D',
+    focus: 'FOMC transcripts, Federal Reserve interest rate projections, central bank liquidity indicators, and macro-economic policy signals',
   },
   {
-    id: 'sentiment',
-    title: 'Bank Expert Analysis',
-    desc: 'Score retail enthusiasm, volume trends & whale tracking',
+    id:    'bank',
+    title: 'Bank Alpha-Whale Scanner',
+    desc:  'Tracks tier-1 commercial banking liquidity adjustments, institutional order blocks, and volume footprints.',
     emoji: '🏦',
-    color: '#2D3748', // Institutional Slate
-    focus: 'market sentiment indicators, retail momentum vs institutional flow, and volume-price divergence'
-  }
+    tag:   'INSTITUTIONAL',
+    tagColor: C.green,
+    tagBg:    C.greenLight,
+    color: '#2D3748',
+    focus: 'tier-1 commercial banking liquidity adjustments, institutional order blocks, volume footprints, and dark pool activity',
+  },
+  {
+    id:    'crypto',
+    title: 'Crypto Bro Momentum-X Engine',
+    desc:  'Analyzes real-time cryptocurrency volatility trends, on-chain whale distributions, and breakout patterns.',
+    emoji: '⚡',
+    tag:   'MOMENTUM',
+    tagColor: C.amber,
+    tagBg:    'rgba(245,158,11,0.10)',
+    color: '#7C3AED',
+    focus: 'real-time cryptocurrency volatility trends, on-chain whale distributions, breakout patterns, and momentum oscillators',
+    badge: '🚀',
+  },
 ];
 
 interface AnalysisRecord {
@@ -97,9 +136,21 @@ export default function ScanScreen() {
   const [history, setHistory] = useState<AnalysisRecord[]>([]);
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisRecord | null>(null);
 
-  /**
-   * REAL-TIME SYNCHRONIZATION
-   */
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isScanning) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.03, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isScanning]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -126,27 +177,17 @@ export default function ScanScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  /**
-   * HANDLER: SELECT RECORD (FIXES ReferenceError)
-   * Directly routes item payload to dashboard state and switches tabs.
-   */
   const handleSelectRecord = (record: AnalysisRecord) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveAnalysis(record);
-    setActiveTab('scan'); // Automatically switch to scanner view to see the report
+    setActiveTab('scan');
   };
 
-  /**
-   * HANDLER: DISMISS ANALYSIS
-   */
   const closeAnalysis = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setActiveAnalysis(null);
   };
 
-  /**
-   * EXECUTE MULTI-MODAL SCAN
-   */
   const executeScan = async () => {
     if (!API_KEY) {
       Alert.alert("Error", "Gemini API Key missing.");
@@ -155,7 +196,7 @@ export default function ScanScreen() {
     if (!user) return;
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
       base64: true,
@@ -220,9 +261,6 @@ export default function ScanScreen() {
     }
   };
 
-  /**
-   * PURE NATIVE VISUALIZERS
-   */
   const renderCircularGauge = (score: string) => {
     const percentage = parseInt(score) || 50;
     return (
@@ -261,16 +299,13 @@ export default function ScanScreen() {
     </View>
   );
 
-  /**
-   * PREMIUM DASHBOARD OVERVIEW
-   */
   const renderDashboard = (record: AnalysisRecord) => {
     const isBullish = record.overallTrend === 'Bullish';
     const isBearish = record.overallTrend === 'Bearish';
     const trendColor = isBullish ? '#58CC02' : isBearish ? '#FF4B4B' : '#CE82FF';
     
-    const tool = SCAN_TOOLS.find(t => t.id === record.toolId) || (record.reportTitle?.includes('Sentiment') ? SCAN_TOOLS[1] : SCAN_TOOLS[0]);
-    const actionPrefix = tool.id === 'patterns' ? 'FED' : 'BANK';
+    const tool = SCAN_TOOLS.find(t => t.id === record.toolId) || SCAN_TOOLS[0];
+    const actionPrefix = tool.id === 'federal' ? 'FED' : tool.id === 'bank' ? 'BANK' : 'CRYPTO';
     const actionType = isBullish ? 'BUY' : isBearish ? 'SELL' : 'HOLD';
     const actionEmoji = isBullish ? '📈' : isBearish ? '📉' : '⚖️';
     const actionColor = isBullish ? '#22C55E' : isBearish ? '#EF4444' : '#EAB308';
@@ -369,6 +404,7 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
       <View style={styles.tabNav}>
         <Pressable 
           onPress={() => { setActiveTab('scan'); closeAnalysis(); }} 
@@ -389,7 +425,7 @@ export default function ScanScreen() {
           <>
             <View style={styles.assistantRow}>
               <View style={styles.mascotBadge}>
-                <Image source={require('../../assets/images/mascots/shiba.png')} style={styles.bearIcon} />
+                <Image source={require('../../assets/images/mascots/cat.png')} style={styles.bearIcon} />
                 <View style={styles.processorLabel}>
                   <Text style={styles.processorText}>AI PROCESSOR</Text>
                 </View>
@@ -403,42 +439,52 @@ export default function ScanScreen() {
             {activeAnalysis ? renderDashboard(activeAnalysis) : (
               <>
                 <View style={styles.toolList}>
-                  {SCAN_TOOLS.map((tool) => (
-                    <Pressable
-                      key={tool.id}
-                      onPress={() => setSelectedTool(tool)}
-                      style={[
-                        styles.toolItem,
-                        selectedTool.id === tool.id && { borderColor: tool.color, backgroundColor: '#FFFFFF' }
-                      ]}
-                    >
-                      <View style={[styles.iconBox, { backgroundColor: tool.color + '15' }]}>
-                        <Text style={{ fontSize: 24 }}>{tool.emoji}</Text>
-                      </View>
-                      <View style={styles.toolMeta}>
-                        <Text style={styles.toolTitle}>{tool.title}</Text>
-                        <Text style={styles.toolDesc} numberOfLines={1}>{tool.desc}</Text>
-                      </View>
-                      {selectedTool.id === tool.id && (
-                        <CheckCircle2 color={tool.color} size={22} />
-                      )}
-                    </Pressable>
-                  ))}
+                  {SCAN_TOOLS.map((tool) => {
+                    const isSelected = selectedTool.id === tool.id;
+                    return (
+                      <Pressable
+                        key={tool.id}
+                        onPress={() => setSelectedTool(tool)}
+                        style={[
+                          styles.toolItem,
+                          isSelected ? styles.toolItemActive : styles.toolItemInactive,
+                        ]}
+                      >
+                        <View style={[styles.iconBox, { backgroundColor: isSelected ? C.accentLight : '#F4F4F6' }]}>
+                          <Text style={{ fontSize: 24 }}>{tool.emoji}</Text>
+                        </View>
+                        <View style={styles.toolMeta}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.toolTitle, isSelected && { color: C.accent }]}>{tool.title}</Text>
+                            {tool.badge && <Text style={{ fontSize: 12 }}>{tool.badge}</Text>}
+                          </View>
+                          <Text style={styles.toolDesc} numberOfLines={2}>{tool.desc}</Text>
+                        </View>
+                        {isSelected && (
+                          <View style={styles.activeCheck}>
+                            <CheckCircle2 color={C.green} size={22} />
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
                 <View style={styles.actionZone}>
-                  <Pressable 
-                    onPress={executeScan} 
-                    disabled={isScanning}
-                    style={[styles.scanActionBtn, isScanning && styles.btnDisabled]}
-                  >
-                    {isScanning ? <ActivityIndicator color="#FFF" /> : (
-                      <>
-                        <Scan color="#FFF" size={26} />
-                        <Text style={styles.scanBtnText}>Analyze Now</Text>
-                      </>
-                    )}
-                  </Pressable>
+                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                    <Pressable 
+                      onPress={executeScan} 
+                      disabled={isScanning}
+                      style={[styles.scanActionBtn, isScanning && styles.btnDisabled]}
+                    >
+                      {isScanning ? <ActivityIndicator color="#FFF" /> : (
+                        <>
+                          <Scan color="#FFF" size={26} />
+                          <Text style={styles.scanBtnText}>Analyze Now</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </Animated.View>
                 </View>
               </>
             )}
@@ -447,15 +493,13 @@ export default function ScanScreen() {
           <View style={styles.historyContainer}>
             <Text style={styles.sectionHeader}>SYNCHRONIZED ANALYTICS HISTORY</Text>
             
-            {activeAnalysis && renderDashboard(activeAnalysis)}
-
             {history.map((item) => {
-              const tool = SCAN_TOOLS.find(t => t.id === item.toolId) || (item.reportTitle?.includes('Sentiment') ? SCAN_TOOLS[1] : SCAN_TOOLS[0]);
+              const tool = SCAN_TOOLS.find(t => t.id === item.toolId) || SCAN_TOOLS[0];
               return (
                 <Pressable 
                   key={item.id} 
                   style={styles.logCard}
-                  onPress={() => handleSelectRecord(item)} // FIXES ReferenceError
+                  onPress={() => handleSelectRecord(item)}
                 >
                   <View style={styles.logIconFrame}>
                     <Text style={{ fontSize: 20 }}>{tool.emoji}</Text>
@@ -473,7 +517,7 @@ export default function ScanScreen() {
 
             {history.length === 0 && (
               <View style={styles.emptyContainer}>
-                <CloudOff color="#F0F0F0" size={48} />
+                <CloudOff color="#D0D0D0" size={48} />
                 <Text style={styles.emptyMsg}>No analysis records found.</Text>
               </View>
             )}
@@ -545,15 +589,18 @@ const styles = StyleSheet.create({
   dismissBtn: { marginTop: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: '#F8F8F8', borderRadius: 15, borderWidth: 1, borderColor: '#EEE' },
   dismissText: { fontSize: 14, fontWeight: '800', color: '#4B4B4B' },
   toolList: { paddingHorizontal: 20 },
-  toolItem: { flexDirection: 'row', alignItems: 'center', padding: 18, backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12, borderWidth: 2, borderColor: '#F8F8F8' },
-  iconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  toolItem: { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 18, marginBottom: 12, borderWidth: 2 },
+  toolItemActive: { borderColor: '#3B6EF6', backgroundColor: '#FFFFFF', elevation: 4, shadowColor: '#3B6EF6', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  toolItemInactive: { borderColor: '#F0F0F2', backgroundColor: '#FAFAFB', elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  iconBox: { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   toolMeta: { flex: 1, marginLeft: 16 },
-  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
-  toolDesc: { fontSize: 12, color: '#A0A0A0', marginTop: 2 },
-  actionZone: { paddingHorizontal: 20, marginTop: 10 },
-  scanActionBtn: { backgroundColor: '#4B4B4B', paddingVertical: 18, borderRadius: 22, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
+  toolTitle: { fontSize: 15, fontWeight: '800', color: '#4B4B4B', fontFamily: Platform.OS === 'ios' ? 'Helvetica' : 'sans-serif' },
+  toolDesc: { fontSize: 11, color: '#9CA3AF', marginTop: 3, lineHeight: 16 },
+  activeCheck: { marginLeft: 8 },
+  actionZone: { paddingHorizontal: 20, marginTop: 16 },
+  scanActionBtn: { backgroundColor: '#232533', paddingVertical: 18, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   btnDisabled: { opacity: 0.6 },
-  scanBtnText: { color: '#FFF', fontSize: 17, fontWeight: '900' },
+  scanBtnText: { color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 0.3 },
   historyContainer: { paddingHorizontal: 20 },
   sectionHeader: { fontSize: 10, fontWeight: '900', color: '#D0D0D0', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
   logCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 22, marginBottom: 12, borderWidth: 1, borderColor: '#F0F0F0', elevation: 2 },
@@ -564,5 +611,5 @@ const styles = StyleSheet.create({
   pillBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   pillText: { fontSize: 9, fontWeight: '900' },
   emptyContainer: { marginTop: 60, alignItems: 'center' },
-  emptyMsg: { marginTop: 15, color: '#D0D0D0', fontSize: 14, fontWeight: '700' },
+  emptyMsg: { marginTop: 15, color: '#D0D0D0' },
 });
