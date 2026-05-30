@@ -12,51 +12,84 @@ if (!API_KEY || API_KEY.trim().length === 0) {
   );
 }
 
+// Using Gemini 1.5 Flash for high-speed, structural JSON output
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-export interface InvestmentAnalysis {
-  assetName: string;
-  sentiment: "bullish" | "bearish" | "neutral";
-  probability_score: number;
-  resistance_levels: string[];
-  support_levels: string[];
-  detailed_analysis: string;
-  key_price_target: string;
-  chartData?: Array<{
-    timestamp: number;
-    value: number;
-  }>;
+// Force structural response via generationConfig
+const model = genAI.getGenerativeModel({ 
+  model: GEMINI_MODEL,
+  generationConfig: { 
+    responseMimeType: "application/json" 
+  }
+});
+
+/**
+ * UI INTERFACES FOR FIRESTORE PIPELINE
+ */
+export interface PresentationSlide {
+  slideOrder: number;
+  slideHeading: string;
+  mascotExpression: 'scan_active' | 'thinking' | 'wave' | 'alert';
+  bulletPointsList: string[];
+}
+
+export interface ScanResultDoc {
+  scanCategory: 'fed' | 'bank' | 'crypto';
+  createdAt: string;
+  status: 'COMPLETED';
+  dashboardData: {
+    trend: 'Bullish' | 'Bearish' | 'Sideways';
+    confidenceScore: number;
+    sentimentLevel: number;
+  };
+  presentationSlides: PresentationSlide[];
 }
 
 /**
- * Analyzes a financial graph using Gemini 3.1 Flash-Lite as a Senior Quant Analyst.
+ * Analyzes raw chart context and structures results for the Firestore pipeline.
+ * Returns sequential PowerPoint-style slides optimized for mobile UI.
  */
-export async function analyzeInvestmentGraph(
+export async function analyzeMarketScan(
+  category: 'fed' | 'bank' | 'crypto',
   base64Image: string,
   mimeType: string = "image/jpeg"
-): Promise<InvestmentAnalysis> {
+): Promise<ScanResultDoc> {
   const prompt = `
-You are a Senior Quant Analyst at a top-tier investment bank. 
-Analyze the provided financial chart with institutional-grade precision. 
-Identify technical patterns (e.g., Cup and Handle, Head and Shoulders, RSI Divergence), support/resistance zones, and price targets.
+Analyze the provided market chart context for the [${category.toUpperCase()}] scan channel.
+You are the primary financial analysis engine for a mobile application.
 
-Return ONLY a valid raw JSON object. Do NOT include markdown code blocks or any other text.
+CRITICAL INSTRUCTIONS:
+1. Break down findings into sequential, PowerPoint-style presentation cards.
+2. Every slide MUST contain a "bulletPointsList" with EXACTLY 3 numbered lines (1., 2., 3.).
+3. Each bullet must be a single, short sentence optimized for mobile UI cards.
+4. Output exclusively a raw, valid JSON object matching the schema below.
+5. Absolutely NO markdown code blocks (\`\`\`json) and NO conversational prose.
 
-Required JSON Structure:
+JSON Schema Blueprint:
 {
-  "asset_name": "Asset Name (with Currency Symbol if visible, e.g. ₩ or $)",
-  "sentiment": "bullish" | "bearish" | "neutral",
-  "probability_score": 75,
-  "resistance_levels": ["Price 1", "Price 2"],
-  "support_levels": ["Price 1", "Price 2"],
-  "detailed_analysis": "Institutional-grade markdown analysis mentioning specific patterns and price points.",
-  "key_price_target": "Main target price"
+  "scanCategory": "${category}",
+  "createdAt": "${new Date().toISOString()}",
+  "status": "COMPLETED",
+  "dashboardData": {
+    "trend": "Bullish" | "Bearish" | "Sideways",
+    "confidenceScore": number,
+    "sentimentLevel": number
+  },
+  "presentationSlides": [
+    {
+      "slideOrder": number,
+      "slideHeading": "string",
+      "mascotExpression": "scan_active" | "thinking" | "wave" | "alert",
+      "bulletPointsList": [
+        "1. First short, single-sentence discovery item.",
+        "2. Second short, single-sentence immediate technical catalyst.",
+        "3. Third short, single-sentence critical macro risk."
+      ]
+    }
+  ]
 }
-
-Be specific. Do not give generic advice. Mention the exact levels seen in the image.
 `;
 
   try {
@@ -71,29 +104,15 @@ Be specific. Do not give generic advice. Mention the exact levels seen in the im
     ]);
 
     const response = await result.response;
-    let rawText = response.text().trim();
+    let rawJson = response.text().trim();
 
-    // Remove markdown code blocks if present
-    let sanitizedText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-
-    try {
-      const parsed = JSON.parse(sanitizedText);
-      return {
-        assetName: parsed.asset_name,
-        sentiment: parsed.sentiment,
-        probability_score: parsed.probability_score,
-        resistance_levels: parsed.resistance_levels,
-        support_levels: parsed.support_levels,
-        detailed_analysis: parsed.detailed_analysis,
-        key_price_target: parsed.key_price_target,
-        chartData: parsed.chartData || []
-      };
-    } catch (parseError) {
-      console.error("[Gemini] Parse Error:", sanitizedText);
-      throw new Error("Failed to parse AI response as JSON.");
+    if (rawJson.startsWith("```")) {
+      rawJson = rawJson.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
+
+    return JSON.parse(rawJson) as ScanResultDoc;
   } catch (error: any) {
-    console.error("[Gemini] API Error:", error);
-    throw new Error(error?.message || "AI Analysis failed.");
+    console.error("[Gemini Engine] Analysis Error:", error);
+    throw new Error("Market analysis engine failed to generate structured response.");
   }
 }
