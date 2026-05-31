@@ -157,6 +157,97 @@ export default function ScanScreen() {
     }
   };
 
+  const renderSlideContent = (item: PresentationSlide) => {
+    const { slideHeading, bulletPointsList } = item;
+
+    // Slide 1: Market Structure
+    if (slideHeading.includes('Market Structure')) {
+      const resistance = bulletPointsList[0]?.split(': ')[1] || 'N/A';
+      const support = bulletPointsList[1]?.split(': ')[1] || 'N/A';
+      const trend = bulletPointsList[2] || '';
+
+      return (
+        <View style={styles.specializedContent}>
+          <View style={styles.metricGrid}>
+            <View style={[styles.metricBlock, { borderLeftColor: C.red }]}>
+              <Text style={styles.blockLabel}>RESISTANCE</Text>
+              <Text style={styles.blockValue}>{resistance}</Text>
+            </View>
+            <View style={[styles.metricBlock, { borderLeftColor: C.green }]}>
+              <Text style={styles.blockLabel}>SUPPORT</Text>
+              <Text style={styles.blockValue}>{support}</Text>
+            </View>
+          </View>
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryText}>{trend}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Slide 2: Strategic Outlook
+    if (slideHeading.includes('Strategic Outlook')) {
+      const targetStr = bulletPointsList[0]?.split(': ')[1] || '';
+      const targets = targetStr.split(' | ');
+      const probability = bulletPointsList[1]?.match(/\d+%/)?.[0] || '0%';
+      const probValue = parseInt(probability) || 0;
+      const strategy = bulletPointsList[2]?.split(': ')[1] || bulletPointsList[2] || '';
+
+      return (
+        <View style={styles.specializedContent}>
+          <View style={styles.targetsRow}>
+            {targets.map((t, i) => (
+              <View key={i} style={styles.targetBadge}>
+                <Text style={styles.targetBadgeText}>{t}</Text>
+              </View>
+            ))}
+          </View>
+          
+          <View style={styles.probContainer}>
+            <View style={styles.probHeader}>
+              <Text style={styles.blockLabel}>PROBABILITY</Text>
+              <Text style={styles.probValueText}>{probability}</Text>
+            </View>
+            <View style={styles.probTrack}>
+              <View style={[styles.probFill, { width: `${probValue}%` }]} />
+            </View>
+          </View>
+
+          <View style={styles.strategyBox}>
+            <ShieldCheck size={16} color={C.accent} />
+            <Text style={styles.strategyText}>{strategy}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Slide 3: Catalysts & Risks (or default)
+    return (
+      <View style={styles.bulletContainer}>
+        {bulletPointsList.map((point, index) => {
+          const [label, ...rest] = point.split(': ');
+          const content = rest.join(': ');
+          
+          return (
+            <View key={index} style={styles.bulletRow}>
+              {content ? (
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.blockLabel}>{label.toUpperCase()}</Text>
+                  <Text style={styles.bulletText}>{content}</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.bulletAccent} />
+                  <Text style={styles.bulletText}>{point}</Text>
+                </>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderSlideItem = ({ item }: { item: PresentationSlide }) => (
     <View style={styles.slideFrame}>
       <View style={styles.slideCard}>
@@ -164,14 +255,7 @@ export default function ScanScreen() {
           <Image source={MASCOT_MAP[item.mascotExpression]} style={styles.slideMascot} />
           <Text style={styles.slideHeading}>{item.slideHeading}</Text>
         </View>
-        <View style={styles.bulletContainer}>
-          {item.bulletPointsList.map((point, index) => (
-            <View key={index} style={styles.bulletRow}>
-              <View style={styles.bulletAccent} />
-              <Text style={styles.bulletText}>{point}</Text>
-            </View>
-          ))}
-        </View>
+        {renderSlideContent(item)}
       </View>
     </View>
   );
@@ -361,4 +445,26 @@ const styles = StyleSheet.create({
   historyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center' },
   historyTitle: { color: '#FFF', fontSize: 14, fontWeight: '800' },
   historyMeta: { color: C.textMuted, fontSize: 10, marginTop: 4, fontWeight: '700' },
+
+  // Specialized Slide Styles
+  specializedContent: { flex: 1, gap: 15 },
+  metricGrid: { flexDirection: 'row', gap: 12 },
+  metricBlock: { flex: 1, backgroundColor: '#1E2433', padding: 12, borderRadius: 16, borderLeftWidth: 4 },
+  blockLabel: { color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  blockValue: { color: '#FFF', fontSize: 13, fontWeight: '800' },
+  summaryBox: { backgroundColor: '#1E2433', padding: 16, borderRadius: 16 },
+  summaryText: { color: C.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  
+  targetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  targetBadge: { backgroundColor: 'rgba(206, 130, 255, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(206, 130, 255, 0.2)' },
+  targetBadgeText: { color: C.accent, fontSize: 10, fontWeight: '800' },
+  
+  probContainer: { backgroundColor: '#1E2433', padding: 16, borderRadius: 16 },
+  probHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  probValueText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  probTrack: { height: 6, backgroundColor: '#2D3548', borderRadius: 3, overflow: 'hidden' },
+  probFill: { height: '100%', backgroundColor: C.accent },
+  
+  strategyBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(88, 204, 2, 0.05)', padding: 16, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: C.green },
+  strategyText: { flex: 1, color: '#FFF', fontSize: 12, fontWeight: '700', lineHeight: 18 },
 });

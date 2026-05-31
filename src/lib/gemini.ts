@@ -56,16 +56,22 @@ export async function analyzeMarketScan(
   base64Image: string,
   mimeType: string = "image/jpeg"
 ): Promise<ScanResultDoc> {
-  const prompt = `
-Analyze the provided market chart context for the [${category.toUpperCase()}] scan channel.
-You are the primary financial analysis engine for a mobile application.
+  const prompt = `Analyze the provided market chart context for the [${category.toUpperCase()}] scan channel.
+You are the primary financial analysis engine for a premium mobile intelligence application.
 
 CRITICAL INSTRUCTIONS:
-1. Break down findings into sequential, PowerPoint-style presentation cards.
-2. Every slide MUST contain a "bulletPointsList" with EXACTLY 3 numbered lines (1., 2., 3.).
-3. Each bullet must be a single, short sentence optimized for mobile UI cards.
-4. Output exclusively a raw, valid JSON object matching the schema below.
-5. Absolutely NO markdown code blocks (\`\`\`json) and NO conversational prose.
+1. Break down findings into EXACTLY 3 sequential presentation slides with distinct logical intents:
+   - Slide 1: "Market Structure" (Focus on Current Price Action, Support & Resistance levels with exact metrics if visible, or structural zones).
+   - Slide 2: "Strategic Outlook" (Focus on Target Levels for Short-Term, Mid-Term, and Long-Term scenarios, plus scenario probability percentage).
+   - Slide 3: "Catalysts & Risks" (Focus on immediate trigger events, momentum signals, and key risk threats).
+
+2. Every slide MUST contain a "bulletPointsList" with EXACTLY 3 lines following a key-value token structure so the UI can parse metrics dynamically:
+   - For Slide 1 (Market Structure), formatting must include: "Resistance: [Value]", "Support: [Value]", and a summary.
+   - For Slide 2 (Strategic Outlook), formatting must include: "Targets: [Short] | [Mid] | [Long]", "Probability: [XX%]", and a strategic recommendation.
+   - For Slide 3 (Catalysts & Risks), formatting must break down distinct risk or trigger headlines.
+
+3. Output exclusively a raw, valid JSON object matching the schema below.
+4. Absolutely NO markdown code blocks (json) and NO conversational prose.
 
 JSON Schema Blueprint:
 {
@@ -79,18 +85,37 @@ JSON Schema Blueprint:
   },
   "presentationSlides": [
     {
-      "slideOrder": number,
-      "slideHeading": "string",
-      "mascotExpression": "scan_active" | "thinking" | "wave" | "alert",
+      "slideOrder": 1,
+      "slideHeading": "Market Structure",
+      "mascotExpression": "thinking",
       "bulletPointsList": [
-        "1. First short, single-sentence discovery item.",
-        "2. Second short, single-sentence immediate technical catalyst.",
-        "3. Third short, single-sentence critical macro risk."
+        "Resistance: 72,100 THB zone showing selling pressure.",
+        "Support: 61,900 THB floor defending current range.",
+        "Trend Analysis: Price action is forming a horizontal accumulation pattern."
+      ]
+    },
+    {
+      "slideOrder": 2,
+      "slideHeading": "Strategic Outlook",
+      "mascotExpression": "scan_active",
+      "bulletPointsList": [
+        "Targets: Short: 73K-75K | Mid: 76K-78K | Long: 80K-85K",
+        "Probability: 75% Chance of breakout validation.",
+        "Strategy: Accumulate near local support ranges with tight invalidation."
+      ]
+    },
+    {
+      "slideOrder": 3,
+      "slideHeading": "Catalysts & Risks",
+      "mascotExpression": "alert",
+      "bulletPointsList": [
+        "Trigger: Increased global demand for gold as inflation defense.",
+        "Risk Factor: Strong US Dollar index movements capping short-term gains.",
+        "Macro Catalyst: Geopolitical tensions driving safe haven premium flows."
       ]
     }
   ]
-}
-`;
+}`;
 
   try {
     const result = await model.generateContent([
