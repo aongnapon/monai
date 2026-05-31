@@ -110,6 +110,121 @@ const MascotItem = ({ image }: { image: any }) => {
   );
 };
 
+// ─── TRANSLATION BUILD VIEW ──────────────────────────────────
+const TranslationBuildView = ({ item, mascotImg, onNext }: { item: Slide; mascotImg: any; onNext: () => void }) => {
+  const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [shuffledTokens, setShuffledTokens] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (item.tokens) {
+      setShuffledTokens([...item.tokens].sort(() => Math.random() - 0.5));
+    }
+  }, [item.tokens]);
+
+  const toggleToken = (token: string) => {
+    if (selectedTokens.includes(token)) {
+      setSelectedTokens(selectedTokens.filter((t) => t !== token));
+    } else {
+      setSelectedTokens([...selectedTokens, token]);
+    }
+  };
+
+  const isCorrect = JSON.stringify(selectedTokens) === JSON.stringify(item.correctAnswer);
+  const canContinue = selectedTokens.length === (item.tokens?.length || 0);
+
+  return (
+    <View style={styles.slideFrame}>
+      <View style={styles.slideContent}>
+        <View style={styles.prompterBubble}>
+          <Image source={mascotImg} style={styles.prompterMascot} />
+          <Text style={styles.prompterText}>{item.prompt || 'Translate this sentence:'}</Text>
+        </View>
+
+        <View style={styles.wordSlotArea}>
+          {selectedTokens.map((token, i) => (
+            <Pressable key={`selected-${i}`} onPress={() => toggleToken(token)} style={styles.wordBrick}>
+              <Text style={styles.wordBrickText}>{token}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.tokenPool}>
+          {shuffledTokens.map((token, i) => {
+            const isUsed = selectedTokens.includes(token);
+            return (
+              <Pressable
+                key={`pool-${i}`}
+                onPress={() => !isUsed && toggleToken(token)}
+                style={[styles.wordBrick, isUsed && styles.tokenBrickHidden]}
+              >
+                <Text style={[styles.wordBrickText, isUsed && { color: 'transparent' }]}>{token}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable 
+        onPress={() => canContinue && onNext()} 
+        style={[styles.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}
+        disabled={!canContinue}
+      >
+        <Text style={[styles.slideActionText, !canContinue && { color: '#AAA' }]}>Check Result</Text>
+        <MaterialCommunityIcons name="check-bold" size={24} color={canContinue ? "#FFF" : "#AAA"} />
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── TRANSLATION SELECT VIEW ────────────────────────────────
+const TranslationSelectView = ({ item, mascotImg, onNext }: { item: Slide; mascotImg: any; onNext: () => void }) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const handleSelect = (index: number) => {
+    setSelectedIndex(index);
+  };
+
+  const canContinue = selectedIndex !== null;
+
+  return (
+    <View style={styles.slideFrame}>
+      <View style={styles.slideContent}>
+        <View style={styles.prompterBubble}>
+          <Image source={mascotImg} style={styles.prompterMascot} />
+          <Text style={styles.prompterText}>{item.prompt || 'Select the correct answer:'}</Text>
+        </View>
+
+        <View style={styles.selectionStack}>
+          {item.options?.map((opt, i) => {
+            const isActive = selectedIndex === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => handleSelect(i)}
+                style={[styles.selectionButton, isActive && styles.selectionButtonActive]}
+              >
+                <Text style={[styles.selectionLabel, isActive && styles.selectionLabelActive]}>{opt.label}</Text>
+                <View style={[styles.radioBadge, isActive && styles.radioBadgeActive]}>
+                  {isActive && <MaterialCommunityIcons name="check" size={14} color="#FFF" />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable 
+        onPress={() => canContinue && onNext()} 
+        style={[styles.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}
+        disabled={!canContinue}
+      >
+        <Text style={[styles.slideActionText, !canContinue && { color: '#AAA' }]}>Continue</Text>
+        <MaterialCommunityIcons name="arrow-right" size={24} color={canContinue ? "#FFF" : "#AAA"} />
+      </Pressable>
+    </View>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════
@@ -259,11 +374,22 @@ export default function LearnScreen() {
   // SLIDE RENDERER
   // ═══════════════════════════════════════════════════════════
   const renderSlide = ({ item, index }: { item: Slide; index: number }) => {
-    const isQuiz = item.type === 'quiz' || index === 2;
     const courseIndex = selectedCourse
       ? ACADEMY_COURSES.findIndex((c) => c.course_id === selectedCourse.course_id)
       : 0;
     const mascotImg = MASCOT_REGISTRY[courseIndex % 5].image;
+
+    // ─── NEW GAMIFIED TEMPLATES ───────────────────────────
+    if (item.type === 'TRANSLATION_BUILD') {
+      return <TranslationBuildView item={item} mascotImg={mascotImg} onNext={nextSlide} />;
+    }
+
+    if (item.type === 'TRANSLATION_SELECT') {
+      return <TranslationSelectView item={item} mascotImg={mascotImg} onNext={nextSlide} />;
+    }
+
+    // ─── LEGACY QUIZ / INFO SLIDES ────────────────────────
+    const isQuiz = item.type === 'quiz' || (index === 2 && !item.type);
 
     if (isQuiz) {
       return (
@@ -1002,5 +1128,107 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
   },
-  continueJourneyText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  // ─── GAMIFIED TEMPLATE STYLES ─────────────────────────────
+  prompterBubble: {
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderRadius: 18,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+    width: '100%',
+  },
+  prompterMascot: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  prompterText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4B4B4B',
+  },
+  wordSlotArea: {
+    minHeight: 120,
+    width: '100%',
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#E5E5E5',
+    paddingVertical: 15,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 30,
+    justifyContent: 'center',
+  },
+  wordBrick: {
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderBottomWidth: 4,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  wordBrickText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4B4B4B',
+  },
+  tokenPool: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  tokenBrickHidden: {
+    opacity: 0.2,
+    backgroundColor: '#E5E5E5',
+  },
+  selectionStack: {
+    width: '100%',
+    gap: 12,
+  },
+  selectionButton: {
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderBottomWidth: 4,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectionButtonActive: {
+    borderColor: '#84D8FF',
+    backgroundColor: '#DDF4FF',
+  },
+  selectionLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4B4B4B',
+  },
+  selectionLabelActive: {
+    color: '#1899D6',
+  },
+  radioBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FFF',
+  },
+  radioBadgeActive: {
+    borderColor: '#1899D6',
+    backgroundColor: '#1899D6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

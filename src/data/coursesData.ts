@@ -2,12 +2,17 @@ import { LucideIcon } from 'lucide-react-native';
 
 export interface Slide {
   id: string;
-  type?: 'quiz' | 'info';
+  type?: 'quiz' | 'info' | 'TRANSLATION_BUILD' | 'TRANSLATION_SELECT';
   text: string;
   highlightText?: string;
   emoji: string;
   showMascot: boolean;
   mascotAnimation?: 'welcome' | 'celebrate' | 'thinking' | 'caution';
+  // New keys for gamified templates
+  tokens?: string[];
+  correctAnswer?: string | string[];
+  options?: { label: string; isCorrect: boolean }[];
+  prompt?: string;
 }
 
 export interface Course {
@@ -27,6 +32,50 @@ export interface Course {
 export const ACADEMY_COURSES: Course[] = [
   {
     course_id: '1',
+    title: 'Investment Mechanics 101',
+    chapter: 'Wealth Building',
+    iconName: 'TrendingUp',
+    color: '#3B82F6',
+    style: 'normal',
+    slides: [
+      {
+        id: 'inv-1',
+        type: 'TRANSLATION_BUILD',
+        emoji: '🌱',
+        text: 'How does wealth grow over time?',
+        prompt: 'Build the definition of Compound Interest:',
+        tokens: ['Interest', 'on', 'interest', 'earned', 'previously'],
+        correctAnswer: ['Interest', 'on', 'interest', 'earned', 'previously'],
+        showMascot: true,
+        mascotAnimation: 'welcome'
+      },
+      {
+        id: 'inv-2',
+        type: 'TRANSLATION_SELECT',
+        emoji: '💸',
+        text: 'Macro Risk Analysis',
+        prompt: 'What happens to your purchasing power during high inflation?',
+        options: [
+          { label: 'It stays exactly the same', isCorrect: false },
+          { label: 'It decreases significantly', isCorrect: true },
+          { label: 'It increases over time', isCorrect: false },
+          { label: 'It becomes zero immediately', isCorrect: false }
+        ],
+        showMascot: true,
+        mascotAnimation: 'thinking'
+      },
+      {
+        id: 'inv-3',
+        emoji: '💎',
+        text: 'You have mastered the basic mechanics of institutional growth. Your journey is just beginning!',
+        highlightText: 'Wealth Protocol Initialized',
+        showMascot: true,
+        mascotAnimation: 'celebrate'
+      }
+    ]
+  },
+  {
+    course_id: '2',
     title: 'Foundations of Technical Analysis',
     chapter: 'Technical Analysis',
     iconName: 'BarChart3',
@@ -74,7 +123,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '2',
+    course_id: '3',
     title: 'Psychology of Risk Management',
     chapter: 'Risk Management',
     iconName: 'ShieldCheck',
@@ -122,7 +171,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '3',
+    course_id: '4',
     title: 'Crypto vs. Traditional Assets',
     chapter: 'Crypto Mechanics',
     iconName: 'Zap',
@@ -170,7 +219,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '4',
+    course_id: '5',
     title: 'Volume & Liquidity Outflows',
     chapter: 'Technical Analysis',
     iconName: 'Waves',
@@ -218,7 +267,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '5',
+    course_id: '6',
     title: 'Chart Pattern Architecture',
     chapter: 'Technical Analysis',
     iconName: 'LayoutDashboard',
@@ -266,7 +315,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '6',
+    course_id: '7',
     title: 'Advanced Stop-Loss Automation',
     chapter: 'Risk Management',
     iconName: 'Settings',
@@ -314,7 +363,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '7',
+    course_id: '8',
     title: 'The Whale Tracker',
     chapter: 'Market Mechanics',
     iconName: 'Eye',
@@ -362,7 +411,7 @@ export const ACADEMY_COURSES: Course[] = [
     ]
   },
   {
-    course_id: '8',
+    course_id: '9',
     title: 'Volatility Handles',
     chapter: 'Risk Management',
     iconName: 'Activity',
