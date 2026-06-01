@@ -449,14 +449,15 @@ export default function LearnScreen() {
 
   const nextSlide = async () => {
     if (!selectedCourse || !user?.uid) return;
+    // Hard-lock: absolute guard against any concurrent victory trigger
+    if (victoryLockRef.current) return;
     if (activeSlide < selectedCourse.slides.length - 1) {
       const next = activeSlide + 1;
       setActiveSlide(next);
       flatListRef.current?.scrollToIndex({ index: next, animated: true });
       await updateDoc(doc(db, 'portfolio_v2', user.uid), { currentSlideIndex: next });
     } else {
-      // Guard: prevent duplicate victory modal fire
-      if (victoryLockRef.current || isVictoryModalVisible) return;
+      if (isVictoryModalVisible) return;
       victoryLockRef.current = true;
       setVictoryModalVisible(true);
     }
@@ -501,14 +502,17 @@ export default function LearnScreen() {
 
   const continueJourney = async () => {
     if (!user?.uid) return;
+    // Prevent double-press on CONTINUE JOURNEY itself
+    if (!isVictoryModalVisible) return;
+    setVictoryModalVisible(false);
     await updateDoc(doc(db, 'portfolio_v2', user.uid), {
       currentStageIndex: increment(1),
       currentSlideIndex: 0,
     });
-    setVictoryModalVisible(false);
-    victoryLockRef.current = false;
     setSelectedCourse(null);
     setPressedNodeId(null);
+    // Reset lock at absolute completion boundary
+    victoryLockRef.current = false;
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -576,7 +580,11 @@ export default function LearnScreen() {
           {item.highlightText && <Text style={styles.slideHighlight}>{item.highlightText}</Text>}
           <Text style={styles.slideBody}>{item.text}</Text>
         </View>
-        <Pressable onPress={nextSlide} style={styles.slideActionBtn}>
+        <Pressable
+          onPress={nextSlide}
+          disabled={victoryLockRef.current}
+          style={[styles.slideActionBtn, victoryLockRef.current && { opacity: 0.5 }]}
+        >
           <Text style={styles.slideActionText}>
             {index === (selectedCourse?.slides.length || 0) - 1 ? 'Finish Module' : 'Continue'}
           </Text>
@@ -845,8 +853,9 @@ export default function LearnScreen() {
         <View style={styles.victoryBackdrop}>
           <View style={styles.victoryCard}>
             <Image
-              source={MASCOT_REGISTRY[gameState.currentStageIndex % 5].image}
+              source={SHIBA_SUIT_IMG}
               style={styles.victoryMascot}
+              resizeMode="contain"
             />
             <Text style={styles.victoryHeader}>Stage Conquered</Text>
             <View style={styles.victoryStats}>
@@ -1499,56 +1508,58 @@ const styles = StyleSheet.create({
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#F8F9FC',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#E2E8F0',
     borderRadius: 16,
     padding: 16,
     gap: 12,
   },
   radioRowActive: {
-    borderColor: '#FFF',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderColor: '#7C3AED',
+    backgroundColor: '#EDE9FE',
   },
   radioCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioCircleActive: {
-    borderColor: '#FFF',
+    borderColor: '#7C3AED',
+    backgroundColor: '#7C3AED',
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
   },
   radioText: {
     fontSize: 16,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
+    color: '#0A192F',
   },
   radioTextActive: {
-    color: '#FFF',
+    color: '#6D28D9',
   },
 
   // ─── HOME MASCOT (absolute-positioned) ─────────────────────
   homeMascotContainer: {
     position: 'absolute',
-    top: 28,
-    left: 12,
+    top: 240,
+    left: 24,
     zIndex: 10,
-    width: 64,
-    height: 64,
+    width: 110,
+    height: 110,
   },
   homeMascotImage: {
-    width: 64,
-    height: 64,
+    width: 110,
+    height: 110,
     resizeMode: 'contain',
   },
 });
