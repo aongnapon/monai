@@ -2,7 +2,7 @@ import { LucideIcon } from 'lucide-react-native';
 
 export interface Slide {
   id: string;
-  type?: 'quiz' | 'info' | 'TRANSLATION_BUILD' | 'TRANSLATION_SELECT';
+  type?: 'quiz' | 'info' | 'TRANSLATION_BUILD' | 'TRANSLATION_SELECT' | 'VISUAL_GRID_SELECT' | 'COMPARE_EQUATION' | 'IMAGE_LABEL_MATCH';
   text: string;
   highlightText?: string;
   emoji: string;
@@ -11,8 +11,9 @@ export interface Slide {
   // New keys for gamified templates
   tokens?: string[];
   correctAnswer?: string | string[];
-  options?: { label: string; isCorrect: boolean }[];
+  options?: { label: string; isCorrect: boolean; subtext?: string }[];
   prompt?: string;
+  centerEmoji?: string;
 }
 
 export interface Course {
@@ -63,6 +64,46 @@ export const ACADEMY_COURSES: Course[] = [
         ],
         showMascot: true,
         mascotAnimation: 'thinking'
+      },
+      {
+        id: 'l1_s3',
+        type: 'VISUAL_GRID_SELECT',
+        emoji: '📊',
+        text: 'Asset Ownership',
+        prompt: 'Which of these financial assets explicitly represents direct \'ownership\' or equity in a corporation?',
+        options: [
+          { label: '📈 Stocks', isCorrect: true },
+          { label: '📜 Bonds', isCorrect: false },
+          { label: '🐷 Savings', isCorrect: false },
+          { label: '💵 Cash', isCorrect: false }
+        ],
+        showMascot: false
+      },
+      {
+        id: 'l1_s4',
+        type: 'COMPARE_EQUATION',
+        emoji: '🔢',
+        text: 'Compounding Strategy',
+        prompt: 'Select the mathematically superior option for automated, long-term compounding:',
+        options: [
+          { label: '🤖 Low-Fee Index Fund', subtext: '+8% Diversified', isCorrect: true },
+          { label: '🎰 Speculative Token', subtext: 'Variable', isCorrect: false }
+        ],
+        showMascot: false
+      },
+      {
+        id: 'l1_s5',
+        type: 'IMAGE_LABEL_MATCH',
+        emoji: '💳',
+        text: 'Liquidity Analysis',
+        prompt: 'Look at the asset variant below. It is traditionally characterized by the highest baseline liquidity. Identify it:',
+        centerEmoji: '💳',
+        options: [
+          { label: 'Credit/Debit Liquidity', isCorrect: true },
+          { label: 'Real Estate Equity', isCorrect: false },
+          { label: 'Fixed Term Deposit', isCorrect: false }
+        ],
+        showMascot: false
       },
       {
         id: 'inv-3',

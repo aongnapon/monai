@@ -225,6 +225,140 @@ const TranslationSelectView = ({ item, mascotImg, onNext }: { item: Slide; masco
   );
 };
 
+// ─── VISUAL GRID SELECT VIEW ────────────────────────────────
+const VisualGridSelectView = ({ item, onNext }: { item: Slide; onNext: () => void }) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const canContinue = selectedIndex !== null;
+
+  return (
+    <View style={styles.slideFrame}>
+      <View style={styles.slideContent}>
+        <Text style={styles.speakerPromptText}>{item.prompt}</Text>
+        <View style={styles.visualGrid}>
+          {item.options?.map((opt, i) => {
+            const isActive = selectedIndex === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => setSelectedIndex(i)}
+                style={[
+                  styles.gridCard,
+                  isActive && styles.gridCardActive,
+                  isActive && { transform: [{ translateY: 3 }] }
+                ]}
+              >
+                <Text style={styles.gridEmoji}>{opt.label.split(' ')[0]}</Text>
+                <Text style={[styles.gridLabel, isActive && styles.gridLabelActive]}>
+                  {opt.label.split(' ').slice(1).join(' ')}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable 
+        onPress={() => canContinue && onNext()} 
+        style={[styles.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}
+        disabled={!canContinue}
+      >
+        <Text style={[styles.slideActionText, !canContinue && { color: '#AAA' }]}>Check Result</Text>
+        <MaterialCommunityIcons name="check-bold" size={24} color={canContinue ? "#FFF" : "#AAA"} />
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── COMPARE EQUATION VIEW ──────────────────────────────────
+const CompareEquationView = ({ item, onNext }: { item: Slide; onNext: () => void }) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const canContinue = selectedIndex !== null;
+
+  return (
+    <View style={styles.slideFrame}>
+      <View style={styles.slideContent}>
+        <Text style={styles.speakerPromptText}>{item.prompt}</Text>
+        <View style={styles.compareRow}>
+          {item.options?.map((opt, i) => {
+            const isActive = selectedIndex === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => setSelectedIndex(i)}
+                style={[
+                  styles.compareBox,
+                  isActive && styles.compareBoxActive,
+                  isActive && { transform: [{ translateY: 3 }] }
+                ]}
+              >
+                <Text style={styles.compareEmoji}>{opt.label.split(' ')[0]}</Text>
+                <Text style={[styles.compareLabel, isActive && styles.compareLabelActive]}>
+                  {opt.label.split(' ').slice(1).join(' ')}
+                </Text>
+                <Text style={styles.compareSubtext}>{opt.subtext}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable 
+        onPress={() => canContinue && onNext()} 
+        style={[styles.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}
+        disabled={!canContinue}
+      >
+        <Text style={[styles.slideActionText, !canContinue && { color: '#AAA' }]}>Continue</Text>
+        <MaterialCommunityIcons name="arrow-right" size={24} color={canContinue ? "#FFF" : "#AAA"} />
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── IMAGE LABEL MATCH VIEW ─────────────────────────────────
+const ImageLabelMatchView = ({ item, onNext }: { item: Slide; onNext: () => void }) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const canContinue = selectedIndex !== null;
+
+  return (
+    <View style={styles.slideFrame}>
+      <View style={styles.slideContent}>
+        <Text style={styles.speakerPromptText}>{item.prompt}</Text>
+        
+        <View style={styles.illustrativeBadge}>
+          <Text style={styles.badgeEmoji}>{item.centerEmoji}</Text>
+        </View>
+
+        <View style={styles.radioStack}>
+          {item.options?.map((opt, i) => {
+            const isActive = selectedIndex === i;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => setSelectedIndex(i)}
+                style={[styles.radioRow, isActive && styles.radioRowActive]}
+              >
+                <View style={[styles.radioCircle, isActive && styles.radioCircleActive]}>
+                  {isActive && <View style={styles.radioInner} />}
+                </View>
+                <Text style={[styles.radioText, isActive && styles.radioTextActive]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable 
+        onPress={() => canContinue && onNext()} 
+        style={[styles.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}
+        disabled={!canContinue}
+      >
+        <Text style={[styles.slideActionText, !canContinue && { color: '#AAA' }]}>Check Result</Text>
+        <MaterialCommunityIcons name="check-bold" size={24} color={canContinue ? "#FFF" : "#AAA"} />
+      </Pressable>
+    </View>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════
@@ -386,6 +520,18 @@ export default function LearnScreen() {
 
     if (item.type === 'TRANSLATION_SELECT') {
       return <TranslationSelectView item={item} mascotImg={mascotImg} onNext={nextSlide} />;
+    }
+
+    if (item.type === 'VISUAL_GRID_SELECT') {
+      return <VisualGridSelectView item={item} onNext={nextSlide} />;
+    }
+
+    if (item.type === 'COMPARE_EQUATION') {
+      return <CompareEquationView item={item} onNext={nextSlide} />;
+    }
+
+    if (item.type === 'IMAGE_LABEL_MATCH') {
+      return <ImageLabelMatchView item={item} onNext={nextSlide} />;
     }
 
     // ─── LEGACY QUIZ / INFO SLIDES ────────────────────────
@@ -1230,5 +1376,148 @@ const styles = StyleSheet.create({
     backgroundColor: '#1899D6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  speakerPromptText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  visualGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  gridCard: {
+    width: (SCREEN_WIDTH - 92) / 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderBottomWidth: 5,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridCardActive: {
+    borderColor: '#84D8FF',
+    backgroundColor: '#DDF4FF',
+    borderBottomWidth: 2,
+  },
+  gridEmoji: {
+    fontSize: 48,
+    marginBottom: 10,
+  },
+  gridLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4B4B4B',
+    textAlign: 'center',
+  },
+  gridLabelActive: {
+    color: '#1899D6',
+  },
+  compareRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  compareBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderBottomWidth: 5,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+  },
+  compareBoxActive: {
+    borderColor: '#84D8FF',
+    backgroundColor: '#DDF4FF',
+    borderBottomWidth: 2,
+  },
+  compareEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  compareLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#4B4B4B',
+    textAlign: 'center',
+  },
+  compareLabelActive: {
+    color: '#1899D6',
+  },
+  compareSubtext: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#777',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  illustrativeBadge: {
+    backgroundColor: '#F7F7F7',
+    borderRadius: 24,
+    padding: 30,
+    width: SCREEN_WIDTH - 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 30,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+  },
+  badgeEmoji: {
+    fontSize: 64,
+  },
+  radioStack: {
+    width: '100%',
+    gap: 10,
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  radioRowActive: {
+    borderColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  radioCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleActive: {
+    borderColor: '#FFF',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFF',
+  },
+  radioText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  radioTextActive: {
+    color: '#FFF',
   },
 });
