@@ -41,33 +41,35 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
 const THEME = {
-  bg: '#1B1D2A',
-  bgElevated: '#232636',
-  bgCard: '#2A2D3E',
-  accent: '#CE82FF',
-  accentDark: '#A568CC',
-  green: '#58CC02',
-  greenDark: '#46A302',
+  bg: '#FFFFFF',
+  bgElevated: '#F8F9FC',
+  bgCard: '#F1F3F8',
+  accent: '#7C3AED',
+  accentDark: '#6D28D9',
+  green: '#7C3AED',
+  greenDark: '#6D28D9',
   red: '#FF4B4B',
   orange: '#FF9600',
-  blue: '#1CB0F6',
+  blue: '#7C3AED',
   gold: '#FFD700',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  textMuted: '#6B7280',
-  pillBg: 'rgba(255,255,255,0.08)',
-  pillBorder: 'rgba(255,255,255,0.06)',
-  lockedNode: '#3C3F4F',
-  lockedNodeBorder: '#2E3040',
+  textPrimary: '#0A192F',
+  textSecondary: '#1E3A8A',
+  textMuted: '#64748B',
+  pillBg: 'rgba(124,58,237,0.06)',
+  pillBorder: 'rgba(124,58,237,0.12)',
+  lockedNode: '#E2E8F0',
+  lockedNodeBorder: '#CBD5E1',
 };
 
 // ─── MASCOT REGISTRY ──────────────────────────────────────────
+const SHIBA_SUIT_IMG = require('../../assets/images/mascots/shiba_suit.png');
+
 const MASCOT_REGISTRY: Record<
   number,
   { name: string; image: any; side: 'left' | 'right' }
 > = {
-  0: { name: 'shiba', image: require('../../assets/images/mascots/shiba.png'), side: 'right' },
-  1: { name: 'cat', image: require('../../assets/images/mascots/cat.png'), side: 'left' },
+  0: { name: 'shiba_suit', image: SHIBA_SUIT_IMG, side: 'right' },
+  1: { name: 'shiba_suit', image: SHIBA_SUIT_IMG, side: 'left' },
   2: { name: 'pig', image: require('../../assets/images/mascots/pig.png'), side: 'right' },
   3: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'left' },
   4: { name: 'fish', image: require('../../assets/images/mascots/fish.png'), side: 'right' },
@@ -386,6 +388,7 @@ export default function LearnScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const bounceAnim = useRef(new RNAnimated.Value(0)).current;
+  const victoryLockRef = useRef(false);
 
   // ─── BOUNCE ANIMATION (treasure node) ────────────────────
   useEffect(() => {
@@ -452,6 +455,9 @@ export default function LearnScreen() {
       flatListRef.current?.scrollToIndex({ index: next, animated: true });
       await updateDoc(doc(db, 'portfolio_v2', user.uid), { currentSlideIndex: next });
     } else {
+      // Guard: prevent duplicate victory modal fire
+      if (victoryLockRef.current || isVictoryModalVisible) return;
+      victoryLockRef.current = true;
       setVictoryModalVisible(true);
     }
   };
@@ -500,6 +506,7 @@ export default function LearnScreen() {
       currentSlideIndex: 0,
     });
     setVictoryModalVisible(false);
+    victoryLockRef.current = false;
     setSelectedCourse(null);
     setPressedNodeId(null);
   };
@@ -749,13 +756,22 @@ export default function LearnScreen() {
       </View>
 
       {/* ─── SERPENTINE PATH ───────────────────────────────── */}
-      <FlatList
-        data={trailData}
-        renderItem={renderTrailNode}
-        keyExtractor={(item) => item.course_id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      />
+      <View style={{ flex: 1 }}>
+        {/* Absolute-positioned mascot at horizontal midpoint left of first node */}
+        <View style={styles.homeMascotContainer}>
+          <Animated.Image
+            source={SHIBA_SUIT_IMG}
+            style={styles.homeMascotImage}
+          />
+        </View>
+        <FlatList
+          data={trailData}
+          renderItem={renderTrailNode}
+          keyExtractor={(item) => item.course_id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        />
+      </View>
 
       {/* ─── HEALTH GATEWAY MODAL ──────────────────────────── */}
       <Modal visible={isHealthModalVisible} transparent animationType="fade">
@@ -787,7 +803,7 @@ export default function LearnScreen() {
       {/* ─── LESSON MODAL ──────────────────────────────────── */}
       <Modal visible={!!selectedCourse} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.lessonStage, { backgroundColor: selectedCourse?.color || '#5865F2' }]}>
+          <View style={[styles.lessonStage, { backgroundColor: '#FFFFFF' }]}>
             <SafeAreaView style={{ flex: 1 }}>
               <View style={styles.lessonTop}>
                 <View style={styles.progressBarBg}>
@@ -853,7 +869,7 @@ export default function LearnScreen() {
 const styles = StyleSheet.create({
 
   // ─── ROOT ─────────────────────────────────────────────────
-  container:  { flex: 1, backgroundColor: THEME.bg },
+  container:  { flex: 1, backgroundColor: '#FFFFFF' },
   fullCenter: { justifyContent: 'center', alignItems: 'center' },
 
   // ─── STATUS BAR ───────────────────────────────────────────
@@ -863,7 +879,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: THEME.bg,
+    backgroundColor: '#FFFFFF',
   },
   statusPill: {
     flexDirection: 'row',
@@ -889,7 +905,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: THEME.green,
+    backgroundColor: THEME.accent,
     borderRadius: 16,
   },
   unitHeaderLeft:  { flex: 1, marginRight: 12 },
@@ -1096,13 +1112,13 @@ const styles = StyleSheet.create({
   progressBarBg: {
     flex: 1,
     height: 12,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(124,58,237,0.15)',
     borderRadius: 6,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.accent,
     borderRadius: 6,
   },
   exitBtn:    { padding: 4 },
@@ -1125,18 +1141,18 @@ const styles = StyleSheet.create({
   slideHighlight: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#FFF',
+    color: '#0A192F',
     textAlign: 'center',
     marginBottom: 8,
   },
   slideBody: {
     fontSize: 17,
-    color: '#FFF',
+    color: '#1E3A8A',
     textAlign: 'center',
     fontWeight: '700',
   },
   slideActionBtn: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#7C3AED',
     paddingVertical: 16,
     borderRadius: 20,
     flexDirection: 'row',
@@ -1147,7 +1163,7 @@ const styles = StyleSheet.create({
   slideActionText: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#4B4B4B',
+    color: '#FFFFFF',
     marginRight: 10,
   },
 
@@ -1169,7 +1185,7 @@ const styles = StyleSheet.create({
   quizQuestionText: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#2C3E50',
+    color: '#0A192F',
     textAlign: 'center',
     marginBottom: 25,
   },
@@ -1296,7 +1312,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#4B4B4B',
+    color: '#0A192F',
   },
   wordSlotArea: {
     minHeight: 120,
@@ -1352,8 +1368,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   selectionButtonActive: {
-    borderColor: '#84D8FF',
-    backgroundColor: '#DDF4FF',
+    borderColor: '#7C3AED',
+    backgroundColor: '#EDE9FE',
   },
   selectionLabel: {
     fontSize: 16,
@@ -1361,7 +1377,7 @@ const styles = StyleSheet.create({
     color: '#4B4B4B',
   },
   selectionLabelActive: {
-    color: '#1899D6',
+    color: '#6D28D9',
   },
   radioBadge: {
     width: 22,
@@ -1372,15 +1388,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   radioBadgeActive: {
-    borderColor: '#1899D6',
-    backgroundColor: '#1899D6',
+    borderColor: '#7C3AED',
+    backgroundColor: '#7C3AED',
     justifyContent: 'center',
     alignItems: 'center',
   },
   speakerPromptText: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFF',
+    color: '#0A192F',
     textAlign: 'center',
     marginBottom: 20,
     paddingHorizontal: 10,
@@ -1404,8 +1420,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gridCardActive: {
-    borderColor: '#84D8FF',
-    backgroundColor: '#DDF4FF',
+    borderColor: '#7C3AED',
+    backgroundColor: '#EDE9FE',
     borderBottomWidth: 2,
   },
   gridEmoji: {
@@ -1419,7 +1435,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   gridLabelActive: {
-    color: '#1899D6',
+    color: '#6D28D9',
   },
   compareRow: {
     flexDirection: 'row',
@@ -1438,8 +1454,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   compareBoxActive: {
-    borderColor: '#84D8FF',
-    backgroundColor: '#DDF4FF',
+    borderColor: '#7C3AED',
+    backgroundColor: '#EDE9FE',
     borderBottomWidth: 2,
   },
   compareEmoji: {
@@ -1453,7 +1469,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   compareLabelActive: {
-    color: '#1899D6',
+    color: '#6D28D9',
   },
   compareSubtext: {
     fontSize: 12,
@@ -1519,5 +1535,20 @@ const styles = StyleSheet.create({
   },
   radioTextActive: {
     color: '#FFF',
+  },
+
+  // ─── HOME MASCOT (absolute-positioned) ─────────────────────
+  homeMascotContainer: {
+    position: 'absolute',
+    top: 28,
+    left: 12,
+    zIndex: 10,
+    width: 64,
+    height: 64,
+  },
+  homeMascotImage: {
+    width: 64,
+    height: 64,
+    resizeMode: 'contain',
   },
 });
