@@ -1560,7 +1560,7 @@ const styles = StyleSheet.create({
   // Existing Suit Mascot (Left Side)
   homeMascotContainer: {
     position: 'absolute',
-    top: 240,
+    top: 350,
     left: 50,
     zIndex: 99,
     width: 110,
@@ -1577,8 +1577,8 @@ const styles = StyleSheet.create({
   // New Cash Mascot (Right Side - reference image_8e3754.png)
   cashMascotContainer: {
     position: 'absolute',
-    top: 560,       // Positioned lower down on the right quadrant
-    right: 50,      // Mirrored distance from the right edge
+    top: 610,       // Positioned lower down on the right quadrant
+    right: 26,      // Mirrored distance from the right edge
     zIndex: 99,
     width: 110,
     height: 110,
@@ -1586,8 +1586,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cashMascotImage: {
-    width: 110,
-    height: 110,
+    width: 130,
+    height: 130,
     resizeMode: 'contain',
   },
 });
