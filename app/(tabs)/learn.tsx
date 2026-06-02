@@ -1552,7 +1552,7 @@ const styles = StyleSheet.create({
   homeMascotContainer: {
     position: 'absolute',
     top: 240,
-    left: 24,
+    left: 50,
     zIndex: 10,
     width: 110,
     height: 110,
