@@ -63,6 +63,7 @@ const THEME = {
 
 // ─── MASCOT REGISTRY ──────────────────────────────────────────
 const SHIBA_SUIT_IMG = require('../../assets/images/mascots/shiba_suit.png');
+const SHIBA_CASH_IMG = require('../../assets/images/mascots/shiba_cash.png');
 
 const MASCOT_REGISTRY: Record<
   number,
@@ -86,7 +87,7 @@ const getSineOffset = (index: number): number =>
 // ─── LAYOUT CONSTANTS ─────────────────────────────────────────
 const NODE_SIZE = 76;
 const NODE_RADIUS = NODE_SIZE / 2;
-const ROW_HEIGHT = 100; // stable, uniform step height
+const ROW_HEIGHT = 70; // stable, uniform step height
 
 // ─── BREATHING IDLE MASCOT ────────────────────────────────────
 const MascotItem = ({ image }: { image: any }) => {
@@ -765,20 +766,22 @@ export default function LearnScreen() {
 
       {/* ─── SERPENTINE PATH ───────────────────────────────── */}
       <View style={{ flex: 1 }}>
-        {/* Absolute-positioned mascot at horizontal midpoint left of first node */}
-        <View style={styles.homeMascotContainer}>
-          <Animated.Image
-            source={SHIBA_SUIT_IMG}
-            style={styles.homeMascotImage}
-          />
-        </View>
         <FlatList
-          data={trailData}
+          data={trailData.slice(0, 6)}
           renderItem={renderTrailNode}
           keyExtractor={(item) => item.course_id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          scrollEnabled={false}
         />
+      </View>
+
+      {/* Mascot absolute-positioned overlays floating on top of the layout */}
+      <View style={styles.homeMascotContainer}>
+        <Image source={SHIBA_SUIT_IMG} style={styles.homeMascotImage} />
+      </View>
+      <View style={styles.cashMascotContainer}>
+        <Image source={SHIBA_CASH_IMG} style={styles.cashMascotImage} />
       </View>
 
       {/* ─── HEALTH GATEWAY MODAL ──────────────────────────── */}
@@ -938,8 +941,8 @@ const styles = StyleSheet.create({
 
   // ─── SERPENTINE PATH ──────────────────────────────────────
   scrollContent: {
-    paddingBottom: 120,
-    paddingTop: 30,
+    paddingBottom: 10,
+    paddingTop: 10,
     // Extra horizontal padding so mascots (±90px from node) don't clip at screen edges
     paddingHorizontal: 16,
   },
@@ -953,6 +956,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 10,
     // overflow must be visible for absolute-positioned mascots
     overflow: 'visible',
   },
@@ -1299,6 +1303,11 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
   },
+  continueJourneyText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
   // ─── GAMIFIED TEMPLATE STYLES ─────────────────────────────
   prompterBubble: {
     backgroundColor: '#FFF',
@@ -1548,16 +1557,35 @@ const styles = StyleSheet.create({
     color: '#6D28D9',
   },
 
-  // ─── HOME MASCOT (absolute-positioned) ─────────────────────
+  // Existing Suit Mascot (Left Side)
   homeMascotContainer: {
     position: 'absolute',
     top: 240,
     left: 50,
-    zIndex: 10,
+    zIndex: 99,
     width: 110,
     height: 110,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   homeMascotImage: {
+    width: 110,
+    height: 110,
+    resizeMode: 'contain',
+  },
+
+  // New Cash Mascot (Right Side - reference image_8e3754.png)
+  cashMascotContainer: {
+    position: 'absolute',
+    top: 560,       // Positioned lower down on the right quadrant
+    right: 50,      // Mirrored distance from the right edge
+    zIndex: 99,
+    width: 110,
+    height: 110,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cashMascotImage: {
     width: 110,
     height: 110,
     resizeMode: 'contain',
