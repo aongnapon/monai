@@ -21,6 +21,7 @@ import {
   Platform,
   Pressable,
   Animated as RNAnimated,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -42,21 +43,21 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // ─── DESIGN TOKENS ────────────────────────────────────────────
 const THEME = {
   bg: '#FFFFFF',
-  bgElevated: '#F8F9FC',
-  bgCard: '#F1F3F8',
-  accent: '#7C3AED',
-  accentDark: '#6D28D9',
-  green: '#7C3AED',
-  greenDark: '#6D28D9',
-  red: '#FF4B4B',
-  orange: '#FF9600',
-  blue: '#7C3AED',
-  gold: '#FFD700',
-  textPrimary: '#0A192F',
-  textSecondary: '#1E3A8A',
+  bgElevated: '#F8FAFC',
+  bgCard: '#F8FAFC',
+  accent: '#1D4ED8',
+  accentDark: '#1E40AF',
+  green: '#1D4ED8',
+  greenDark: '#1E40AF',
+  red: '#EF4444',
+  orange: '#F59E0B',
+  blue: '#1D4ED8',
+  gold: '#F59E0B',
+  textPrimary: '#0A1128',
+  textSecondary: '#64748B',
   textMuted: '#64748B',
-  pillBg: 'rgba(124,58,237,0.06)',
-  pillBorder: 'rgba(124,58,237,0.12)',
+  pillBg: '#F8FAFC',
+  pillBorder: '#E2E8F0',
   lockedNode: '#E2E8F0',
   lockedNodeBorder: '#CBD5E1',
 };
@@ -683,6 +684,16 @@ export default function LearnScreen() {
     // ── ROW WRAPPER: fixed height, centered ───────────────
     return (
       <View style={styles.pathRow}>
+        {/* Connecting line segment weaving with the serpentine path */}
+        <View
+          style={[
+            styles.connectorLine,
+            {
+              backgroundColor: isLocked ? '#E2E8F0' : '#1D4ED8',
+              transform: [{ translateX: horizontalOffset }],
+            }
+          ]}
+        />
         {/* Node wrapper — translateX drives the sine weave */}
         <View
           style={[
@@ -727,6 +738,7 @@ export default function LearnScreen() {
   // ═══════════════════════════════════════════════════════════
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
 
       {/* ─── TOP STATUS BAR ────────────────────────────────── */}
       <View style={styles.statusBar}>
@@ -760,7 +772,7 @@ export default function LearnScreen() {
           </Text>
         </View>
         <Pressable style={styles.unitHeaderBtn}>
-          <MaterialCommunityIcons name="notebook-outline" size={28} color="#FFF" />
+          <MaterialCommunityIcons name="notebook-outline" size={28} color={THEME.accent} />
         </Pressable>
       </View>
 
@@ -917,24 +929,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: THEME.accent,
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   unitHeaderLeft:  { flex: 1, marginRight: 12 },
   unitHeaderLabel: {
     fontSize: 12,
     fontWeight: '800',
-    color: 'rgba(255,255,255,0.7)',
+    color: '#64748B',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  unitHeaderTitle: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
+  unitHeaderTitle: { fontSize: 18, fontWeight: '900', color: '#0A1128' },
   unitHeaderBtn: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(29,78,216,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
