@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
 
   home: { paddingBottom: 0 },
   hero: { alignItems: 'center', marginTop: -5, marginBottom: 0 },
-  heroImg: { width: 280, height: 110, resizeMode: 'contain', marginBottom: 5 },
+  heroImg: { width: 350, height: 200, resizeMode: 'contain', marginBottom: 5 },
   heroTitle: { color: C.textPrimary, fontSize: 24, fontWeight: '900' },
   heroSub: { color: C.textSecondary, fontSize: 14, marginTop: 8 },
   toolStack: { paddingHorizontal: 20, gap: 8 },
