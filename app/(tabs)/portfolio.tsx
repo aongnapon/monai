@@ -1,31 +1,31 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Image,
-  FlatList,
-  Modal,
-  Dimensions,
-  ActivityIndicator,
-  Alert,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/context/AuthContext';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  onSnapshot, 
+import { MARKET_STOCKS } from '@/src/data/marketRegistry';
+import {
+  doc,
+  getFirestore,
+  onSnapshot,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } from '@react-native-firebase/firestore';
-import { MARKET_STOCKS, MARKET_CRYPTOS } from '@/src/data/marketRegistry';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 /**
  * ARCHITECTURAL CONFIGURATION
@@ -367,7 +367,7 @@ export default function PortfolioDashboard() {
     );
   };
 
-  if (loading) return <View style={styles.fullCenter}><ActivityIndicator size="large" color="#CE82FF" /></View>;
+  if (loading) return <View style={styles.fullCenter}><ActivityIndicator size="large" color="#1D4ED8" /></View>;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -419,7 +419,7 @@ export default function PortfolioDashboard() {
             <View style={styles.streakRow}>
               {[1, 2, 3, 4, 5, 6, 7].map(d => {
                 const isD = d <= streakCount; const isN = d === streakCount + 1 && lastClaimed !== new Date().toDateString();
-                return <View key={d} style={styles.node}><Animated.View style={[styles.badge, isD && styles.badgeD, isN && { transform: [{ scale: pulseAnim }], borderColor: '#CE82FF', borderWidth: 2 }]}><Text>{isD ? '✔️' : d === 7 ? '🎁' : '💰'}</Text></Animated.View><Text style={[styles.nodeL, isN && { color: '#CE82FF' }]}>Day {d}</Text></View>;
+                return <View key={d} style={styles.node}><Animated.View style={[styles.badge, isD && styles.badgeD, isN && { transform: [{ scale: pulseAnim }], borderColor: '#1D4ED8', borderWidth: 2 }]}><Text>{isD ? '✔️' : d === 7 ? '🎁' : '💰'}</Text></Animated.View><Text style={[styles.nodeL, isN && { color: '#1D4ED8' }]}>Day {d}</Text></View>;
               })}
             </View>
             <View style={styles.nextBox}><Text style={styles.nextL}>NEXT DROP:</Text><Text style={styles.nextV}>+${((streakCount + 1) * 10000).toLocaleString()}</Text></View>
@@ -451,11 +451,11 @@ const styles = StyleSheet.create({
   flexOne: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
   title: { fontSize: 26, fontWeight: '900', color: '#0F172A' },
-  streakBtn: { backgroundColor: '#F8F1FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#CE82FF' },
+  streakBtn: { backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#1D4ED8' },
   streakEmoji: { fontSize: 16, marginRight: 5 },
-  streakBtnText: { fontSize: 12, fontWeight: '800', color: '#CE82FF' },
+  streakBtnText: { fontSize: 12, fontWeight: '800', color: '#1D4ED8' },
   lockedArea: { paddingHorizontal: 20, marginBottom: 20 },
-  balanceCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 28, borderWidth: 2, borderColor: '#CE82FF', shadowColor: '#CE82FF', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
+  balanceCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 28, borderWidth: 2, borderColor: '#1D4ED8', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
   balanceLabel: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5 },
   balanceAmount: { fontSize: 36, fontWeight: '900', color: '#0F172A', marginVertical: 10 },
   balanceFooter: { flexDirection: 'row', alignItems: 'center' },
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   tabBtn: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 14 },
   tabBtnActive: { backgroundColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
   tabText: { fontSize: 13, fontWeight: '700', color: '#94A3B8' },
-  tabTextActive: { color: '#0F172A' },
+  tabTextActive: { color: '#0A1128' },
   searchBox: { marginHorizontal: 20, marginBottom: 15, height: 50, backgroundColor: '#F1F5F9', borderRadius: 16, paddingHorizontal: 15, justifyContent: 'center' },
   searchField: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
   listPad: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -495,17 +495,17 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', padding: 40 },
   emptyText: { color: '#94A3B8', fontSize: 14, fontWeight: '700' },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
-  rewardCard: { width: SCREEN_WIDTH * 0.9, backgroundColor: '#FFF', borderRadius: 40, padding: 30, alignItems: 'center', borderWidth: 3, borderColor: '#CE82FF' },
-  rewardLabel: { fontSize: 10, fontWeight: '900', color: '#CE82FF', letterSpacing: 2, marginBottom: 10 },
+  rewardCard: { width: SCREEN_WIDTH * 0.9, backgroundColor: '#FFF', borderRadius: 40, padding: 30, alignItems: 'center', borderWidth: 3, borderColor: '#1D4ED8' },
+  rewardLabel: { fontSize: 10, fontWeight: '900', color: '#1D4ED8', letterSpacing: 2, marginBottom: 10 },
   rewardTitle: { fontSize: 26, fontWeight: '900', color: '#111', marginBottom: 35 },
   streakRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginBottom: 35 },
   node: { alignItems: 'center', width: 62 },
   badge: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F8F9FA', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  badgeD: { backgroundColor: '#CE82FF', borderColor: '#CE82FF' },
+  badgeD: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
   nodeL: { fontSize: 9, fontWeight: '900', color: '#94A3B8', marginTop: 8 },
-  nextBox: { width: '100%', backgroundColor: '#F8F1FF', padding: 20, borderRadius: 20, marginBottom: 35, alignItems: 'center' },
-  nextL: { fontSize: 11, fontWeight: '900', color: '#CE82FF', marginBottom: 5 },
-  nextV: { fontSize: 22, fontWeight: '900', color: '#CE82FF' },
+  nextBox: { width: '100%', backgroundColor: '#F1F5F9', padding: 20, borderRadius: 20, marginBottom: 35, alignItems: 'center' },
+  nextL: { fontSize: 11, fontWeight: '900', color: '#1D4ED8', marginBottom: 5 },
+  nextV: { fontSize: 22, fontWeight: '900', color: '#1D4ED8' },
   claimB: { width: '100%', backgroundColor: '#0F172A', paddingVertical: 18, borderRadius: 32, alignItems: 'center' },
   claimBT: { color: '#FFF', fontSize: 17, fontWeight: '900' },
   closeReward: { marginTop: 20, padding: 10 },
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   sheetRate: { fontSize: 16, color: '#64748B', marginBottom: 30 },
   inputBox: { marginBottom: 35 },
   inputLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 10 },
-  inputF: { fontSize: 44, fontWeight: '900', borderBottomWidth: 2, borderBottomColor: '#CE82FF', paddingVertical: 8 },
+  inputF: { fontSize: 44, fontWeight: '900', borderBottomWidth: 2, borderBottomColor: '#1D4ED8', paddingVertical: 8 },
   sheetBtnRow: { flexDirection: 'row', justifyContent: 'space-between' },
   sheetB: { flex: 0.48, paddingVertical: 20, borderRadius: 32, alignItems: 'center' },
   sheetBT: { color: '#FFF', fontSize: 17, fontWeight: '900' },
