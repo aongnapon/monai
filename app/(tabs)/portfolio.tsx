@@ -371,9 +371,9 @@ export default function PortfolioDashboard() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* HEADER: Quant Hub + Streak */}
+      {/* HEADER: Portfolio + Streak */}
       <View style={styles.header}>
-        <Text style={styles.title}>Quant Hub</Text>
+        <Text style={styles.title}>Portfolio</Text>
         <Pressable onPress={() => setRewardModalVisible(true)} style={styles.streakBtn}>
           <Text style={styles.streakEmoji}>📅</Text>
           <Text style={styles.streakBtnText}>{streakCount} Day Streak</Text>
