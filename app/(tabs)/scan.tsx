@@ -14,9 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   CheckCircle2,
   ChevronRight,
-  CloudOff,
   Scan,
-  ShieldCheck,
+  ShieldCheck
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -26,7 +25,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
@@ -34,7 +32,7 @@ import {
   StyleSheet,
   Text,
   UIManager,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -44,19 +42,19 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── PALETTE (Luxury Dark) ────────────────────────────────────
+// ─── PALETTE (Premium Light Theme) ────────────────────────────
 const C = {
-  bg: '#141924',
-  surface: '#1E2433',
-  card: '#252D3D',
-  accent: '#CE82FF',
-  green: '#58CC02',
-  red: '#FF4B4B',
-  amber: '#FF9600',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  border: 'rgba(255,255,255,0.08)',
+  bg: '#FFFFFF',                     // Pure white background
+  surface: '#F8FAFC',                // Soft slate tint surface depth
+  card: '#FFFFFF',                   // Clean card base
+  accent: '#1D4ED8',                 // Commanding vibrant royal blue accent
+  green: '#10B981',                  // Modern light-mode emerald green
+  red: '#EF4444',                    // Modern light-mode rose red
+  amber: '#F59E0B',                  // Modern light-mode amber
+  textPrimary: '#0A1128',            // Premium deep dark navy blue
+  textSecondary: '#64748B',          // Slate grey subtitles/secondary labels
+  textMuted: '#64748B',              // Slate grey muted
+  border: '#E2E8F0',                 // Soft light slate border
 };
 
 // ─── INTERFACES ──────────────────────────────────────────────
@@ -66,7 +64,7 @@ interface LocalScanResult extends ScanResultDoc {
 }
 
 const MASCOT_MAP = {
-  scan_active: require('../../assets/images/mascots/cat.png'),
+  scan_active: require('../../assets/images/mascots/fed.png'),
   thinking: require('../../assets/images/mascots/shiba.png'),
   wave: require('../../assets/images/mascots/pig.png'),
   alert: require('../../assets/images/mascots/fish.png'),
@@ -282,7 +280,7 @@ export default function ScanScreen() {
             <Text style={styles.miniLabel}>SENTIMENT</Text>
             <View style={styles.stepGrid}>
               {[1, 2, 3, 4, 5].map(s => (
-                <View key={s} style={[styles.step, { backgroundColor: s <= sentimentLevel ? C.accent : '#2D3548' }]} />
+                <View key={s} style={[styles.step, { backgroundColor: s <= sentimentLevel ? C.accent : '#E2E8F0' }]} />
               ))}
             </View>
           </View>
@@ -321,7 +319,7 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       
       <View style={styles.tabNav}>
         <Pressable onPress={() => setActiveTab('scan')} style={[styles.tab, activeTab === 'scan' && styles.tabActive]}>
@@ -332,12 +330,12 @@ export default function ScanScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         {activeTab === 'scan' ? (
           activeAnalysis ? renderDashboard(activeAnalysis) : (
             <View style={styles.home}>
               <View style={styles.hero}>
-                <Image source={require('../../assets/images/mascots/cat.png')} style={styles.heroImg} />
+                <Image source={require('../../assets/images/mascots/fed.png')} style={styles.heroImg} />
                 <Text style={styles.heroTitle}>Multi-Modal Vision</Text>
                 <Text style={styles.heroSub}>Select an engine and upload a chart to begin.</Text>
               </View>
@@ -394,77 +392,77 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  tabNav: { flexDirection: 'row', padding: 20, gap: 10 },
+  tabNav: { flexDirection: 'row', padding: 12, gap: 10 },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 14, backgroundColor: C.surface },
   tabActive: { backgroundColor: C.accent },
   tabLabel: { color: C.textSecondary, fontWeight: '800', fontSize: 13 },
-  tabLabelActive: { color: '#FFF' },
+  tabLabelActive: { color: '#FFFFFF' },
 
-  home: { paddingBottom: 40 },
-  hero: { alignItems: 'center', marginVertical: 30 },
-  heroImg: { width: 90, height: 90, resizeMode: 'contain', marginBottom: 15 },
-  heroTitle: { color: '#FFF', fontSize: 24, fontWeight: '900' },
+  home: { paddingBottom: 0 },
+  hero: { alignItems: 'center', marginTop: -5, marginBottom: 0 },
+  heroImg: { width: 280, height: 110, resizeMode: 'contain', marginBottom: 5 },
+  heroTitle: { color: C.textPrimary, fontSize: 24, fontWeight: '900' },
   heroSub: { color: C.textSecondary, fontSize: 14, marginTop: 8 },
-  toolStack: { paddingHorizontal: 20, gap: 12 },
-  toolRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: 'transparent' },
-  toolRowActive: { borderColor: C.accent, backgroundColor: C.card },
-  toolIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  toolName: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+  toolStack: { paddingHorizontal: 20, gap: 8 },
+  toolRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: 'transparent' },
+  toolRowActive: { borderColor: C.accent, backgroundColor: '#FFFFFF' },
+  toolIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  toolName: { color: C.textPrimary, fontSize: 15, fontWeight: '800' },
   toolFocus: { color: C.textMuted, fontSize: 11, marginTop: 2 },
-  scanBtn: { backgroundColor: C.accent, paddingVertical: 18, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-  scanBtnText: { color: '#FFF', fontSize: 17, fontWeight: '900' },
+  scanBtn: { backgroundColor: C.accent, paddingVertical: 14, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  scanBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
 
   dashboard: { paddingHorizontal: 0 },
-  metricRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 20 },
+  metricRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 10 },
   miniCard: { flex: 1, backgroundColor: C.surface, padding: 14, borderRadius: 16, alignItems: 'center' },
   miniLabel: { color: C.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
-  miniValue: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  miniValue: { color: C.textPrimary, fontSize: 14, fontWeight: '900' },
   stepGrid: { flexDirection: 'row', gap: 3 },
   step: { width: 5, height: 10, borderRadius: 2 },
 
-  viewport: { height: 360 },
+  viewport: { height: 340 },
   slideFrame: { width: SCREEN_WIDTH, paddingHorizontal: 20 },
-  slideCard: { flex: 1, backgroundColor: C.card, borderRadius: 28, padding: 25, justifyContent: 'center' },
-  slideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 15 },
+  slideCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 20, justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  slideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 15 },
   slideMascot: { width: 64, height: 64, resizeMode: 'contain' },
-  slideHeading: { flex: 1, color: '#FFF', fontSize: 20, fontWeight: '900' },
-  bulletContainer: { gap: 12 },
-  bulletRow: { flexDirection: 'row', backgroundColor: '#1E2433', padding: 16, borderRadius: 16, alignItems: 'center' },
+  slideHeading: { flex: 1, color: C.textPrimary, fontSize: 20, fontWeight: '900' },
+  bulletContainer: { gap: 8 },
+  bulletRow: { flexDirection: 'row', backgroundColor: C.surface, padding: 12, borderRadius: 16, alignItems: 'center' },
   bulletAccent: { width: 4, height: '100%', backgroundColor: C.accent, borderRadius: 2, marginRight: 15 },
-  bulletText: { flex: 1, color: C.textSecondary, fontSize: 13, fontWeight: '600', lineHeight: 20 },
+  bulletText: { flex: 1, color: C.textPrimary, fontSize: 13, fontWeight: '600', lineHeight: 20 },
   
-  paginationRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 20 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2D3548' },
+  paginationRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 15 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E8F0' },
   dotActive: { width: 24, backgroundColor: C.accent },
 
-  dismissBtn: { marginHorizontal: 20, marginTop: 30, paddingVertical: 16, alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border },
-  dismissText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  dismissBtn: { marginHorizontal: 20, marginTop: 15, paddingVertical: 14, alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border },
+  dismissText: { color: C.textPrimary, fontWeight: '800', fontSize: 14 },
 
   history: { paddingHorizontal: 20 },
-  historyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, padding: 16, borderRadius: 18, marginBottom: 12 },
-  historyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center' },
-  historyTitle: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  historyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, padding: 16, borderRadius: 18, marginBottom: 8 },
+  historyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+  historyTitle: { color: C.textPrimary, fontSize: 14, fontWeight: '800' },
   historyMeta: { color: C.textMuted, fontSize: 10, marginTop: 4, fontWeight: '700' },
 
   // Specialized Slide Styles
-  specializedContent: { flex: 1, gap: 15 },
+  specializedContent: { flex: 1, gap: 10 },
   metricGrid: { flexDirection: 'row', gap: 12 },
-  metricBlock: { flex: 1, backgroundColor: '#1E2433', padding: 12, borderRadius: 16, borderLeftWidth: 4 },
+  metricBlock: { flex: 1, backgroundColor: C.surface, padding: 12, borderRadius: 16, borderLeftWidth: 4 },
   blockLabel: { color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
-  blockValue: { color: '#FFF', fontSize: 13, fontWeight: '800' },
-  summaryBox: { backgroundColor: '#1E2433', padding: 16, borderRadius: 16 },
+  blockValue: { color: C.textPrimary, fontSize: 13, fontWeight: '800' },
+  summaryBox: { backgroundColor: C.surface, padding: 12, borderRadius: 16 },
   summaryText: { color: C.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   
   targetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  targetBadge: { backgroundColor: 'rgba(206, 130, 255, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(206, 130, 255, 0.2)' },
+  targetBadge: { backgroundColor: 'rgba(29, 78, 216, 0.08)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(29, 78, 216, 0.15)' },
   targetBadgeText: { color: C.accent, fontSize: 10, fontWeight: '800' },
   
-  probContainer: { backgroundColor: '#1E2433', padding: 16, borderRadius: 16 },
-  probHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  probValueText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
-  probTrack: { height: 6, backgroundColor: '#2D3548', borderRadius: 3, overflow: 'hidden' },
+  probContainer: { backgroundColor: C.surface, padding: 12, borderRadius: 16 },
+  probHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  probValueText: { color: C.textPrimary, fontSize: 14, fontWeight: '900' },
+  probTrack: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
   probFill: { height: '100%', backgroundColor: C.accent },
   
-  strategyBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(88, 204, 2, 0.05)', padding: 16, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: C.green },
-  strategyText: { flex: 1, color: '#FFF', fontSize: 12, fontWeight: '700', lineHeight: 18 },
+  strategyBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(16, 185, 129, 0.08)', padding: 12, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: C.green },
+  strategyText: { flex: 1, color: C.textPrimary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
 });
