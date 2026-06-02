@@ -772,7 +772,7 @@ export default function LearnScreen() {
           </Text>
         </View>
         <Pressable style={styles.unitHeaderBtn}>
-          <MaterialCommunityIcons name="notebook-outline" size={28} color={THEME.accent} />
+          <MaterialCommunityIcons name="notebook-outline" size={28} color="#FFFFFF" />
         </Pressable>
       </View>
 
@@ -929,26 +929,24 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#1D4ED8',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   unitHeaderLeft:  { flex: 1, marginRight: 12 },
   unitHeaderLabel: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#64748B',
+    color: '#E2E8F0',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  unitHeaderTitle: { fontSize: 18, fontWeight: '900', color: '#0A1128' },
+  unitHeaderTitle: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
   unitHeaderBtn: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(29,78,216,0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
