@@ -2,14 +2,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import {
   Dimensions,
-  Image,
   LogBox,
   Animated as RNAnimated,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 import Animated, {
   Easing,
@@ -86,9 +85,9 @@ const SHIBA_SUIT_IMG = require('../../assets/images/mascots/shiba_suit.png');
 const SHIBA_CASH_IMG = require('../../assets/images/mascots/shiba_cash.png');
 
 // One Shiba mascot per section, placed in the empty curve spot
-const MASCOT_SLOTS: Record<number, { image: any; side: 'left' | 'right' }> = {
-  2: { image: SHIBA_SUIT_IMG, side: 'left' },   // Bullish section, node curves left → mascot LEFT
-  5: { image: SHIBA_CASH_IMG, side: 'right' },  // Bearish section, node curves right → mascot RIGHT
+const MASCOT_SLOTS: Record<number, { image: any; side: 'left' | 'right'; size?: number }> = {
+  2: { image: SHIBA_SUIT_IMG, side: 'left' },                // Bullish section, curve pocket LEFT
+  6: { image: SHIBA_CASH_IMG, side: 'right', size: 120 },    // Bearish section, curve pocket RIGHT (above milestone)
 };
 
 // ─── SINE-WAVE CONSTANTS ──────────────────────────────────────
@@ -234,9 +233,10 @@ export default function LearnScreen() {
 
     // ── Mascot row: node + mascot side-by-side ──────────
     if (mascotSlot) {
+      const mascotSize = mascotSlot.size;
       const mascotView = (
-        <View style={styles.mascotSlotContainer}>
-          <MascotItem image={mascotSlot.image} />
+        <View style={[styles.mascotSlotContainer, mascotSize && { width: mascotSize, height: mascotSize }]}>
+          <MascotItem image={mascotSlot.image} style={mascotSize ? { width: mascotSize, height: mascotSize } : undefined} />
         </View>
       );
 
