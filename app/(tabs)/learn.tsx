@@ -84,15 +84,11 @@ const THEME = {
 // ─── MASCOT ASSETS ────────────────────────────────────────────
 const SHIBA_SUIT_IMG = require('../../assets/images/mascots/shiba_suit.png');
 const SHIBA_CASH_IMG = require('../../assets/images/mascots/shiba_cash.png');
-const PIG_IMG = require('../../assets/images/mascots/pig.png');
-const CAT_IMG = require('../../assets/images/mascots/cat.png');
 
-// Mascots anchored to specific node indices and curve sides
+// One Shiba mascot per section, placed in the empty curve spot
 const MASCOT_SLOTS: Record<number, { image: any; side: 'left' | 'right' }> = {
-  1: { image: SHIBA_SUIT_IMG, side: 'left' },   // Blue set, node curves right → mascot LEFT
-  2: { image: PIG_IMG,        side: 'right' },  // Blue set, node curves left  → mascot RIGHT
-  4: { image: CAT_IMG,        side: 'right' },  // Red set, node curves right  → mascot RIGHT
-  5: { image: SHIBA_CASH_IMG, side: 'left' },   // Red set, node curves left   → mascot LEFT
+  2: { image: SHIBA_SUIT_IMG, side: 'left' },   // Bullish section, node curves left → mascot LEFT
+  5: { image: SHIBA_CASH_IMG, side: 'right' },  // Bearish section, node curves right → mascot RIGHT
 };
 
 // ─── SINE-WAVE CONSTANTS ──────────────────────────────────────
