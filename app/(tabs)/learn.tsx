@@ -25,7 +25,7 @@ LogBox.ignoreLogs(['Unsupported top level event type "topSvgLayout"']);
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ═══════════════════════════════════════════════════════════════
-// MOCK DATA — 12 nodes for visual layout test
+// MOCK DATA — 8 nodes (4 per set) for visual layout test
 // ═══════════════════════════════════════════════════════════════
 type MockNode = {
   id: string;
@@ -36,18 +36,16 @@ type MockNode = {
 };
 
 const MOCK_NODES: MockNode[] = [
-  { id: 'n1',  title: 'Market Basics',         status: 'completed' },
-  { id: 'n2',  title: 'Candlestick Patterns',  status: 'completed' },
-  { id: 'n3',  title: 'Support & Resistance',  status: 'completed' },
-  { id: 'n4',  title: 'Moving Averages',        status: 'active' },
-  { id: 'n5',  title: 'Volume Analysis',        status: 'locked' },
-  { id: 'n6',  title: 'Bullish Milestone',      status: 'locked', isLandmark: true },
-  { id: 'n7',  title: 'Short Selling 101',      status: 'locked' },
-  { id: 'n8',  title: 'Put Options',            status: 'locked' },
-  { id: 'n9',  title: 'Bear Flags & Wedges',    status: 'locked' },
-  { id: 'n10', title: 'Inverse ETFs',           status: 'locked' },
-  { id: 'n11', title: 'Risk Management',        status: 'locked' },
-  { id: 'n12', title: 'Bearish Milestone',       status: 'locked', isLandmark: true },
+  // ── Blue / Bullish Set (Indices 0–3) ──
+  { id: 'n1', title: 'Market Basics',        status: 'completed' },
+  { id: 'n2', title: 'Candlestick Patterns', status: 'completed' },
+  { id: 'n3', title: 'Support & Resistance', status: 'active' },
+  { id: 'n4', title: 'Bullish Milestone',    status: 'locked', isLandmark: true },
+  // ── Red / Bearish Set (Indices 4–7) ──
+  { id: 'n5', title: 'Short Selling 101',    status: 'locked' },
+  { id: 'n6', title: 'Put Options',          status: 'locked' },
+  { id: 'n7', title: 'Bear Flags & Wedges',  status: 'locked' },
+  { id: 'n8', title: 'Bearish Milestone',    status: 'locked', isLandmark: true },
 ];
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
@@ -56,12 +54,12 @@ const THEME = {
   bgElevated: '#F8FAFC',
   bgCard: '#F8FAFC',
 
-  // Blue track (nodes 1–6)
+  // Blue track (indices 0–3)
   blueAccent: '#1D4ED8',
   blueDark: '#1E40AF',
   blueGlow: 'rgba(29, 78, 216, 0.35)',
 
-  // Red track (nodes 7–12)
+  // Red track (indices 4–7)
   redAccent: '#991B1B',
   redDark: '#7F1D1D',
   redMid: '#B91C1C',
@@ -81,15 +79,21 @@ const THEME = {
 
   lockedNode: '#E2E8F0',
   lockedNodeBorder: '#CBD5E1',
-
-  connectorBlue: '#1D4ED8',
-  connectorRed: '#991B1B',
-  connectorLocked: '#E2E8F0',
 };
 
-// ─── MASCOT REGISTRY ──────────────────────────────────────────
+// ─── MASCOT ASSETS ────────────────────────────────────────────
 const SHIBA_SUIT_IMG = require('../../assets/images/mascots/shiba_suit.png');
 const SHIBA_CASH_IMG = require('../../assets/images/mascots/shiba_cash.png');
+const PIG_IMG = require('../../assets/images/mascots/pig.png');
+const CAT_IMG = require('../../assets/images/mascots/cat.png');
+
+// Mascots anchored to specific node indices and curve sides
+const MASCOT_SLOTS: Record<number, { image: any; side: 'left' | 'right' }> = {
+  1: { image: SHIBA_SUIT_IMG, side: 'left' },   // Blue set, node curves right → mascot LEFT
+  2: { image: PIG_IMG,        side: 'right' },  // Blue set, node curves left  → mascot RIGHT
+  4: { image: CAT_IMG,        side: 'right' },  // Red set, node curves right  → mascot RIGHT
+  5: { image: SHIBA_CASH_IMG, side: 'left' },   // Red set, node curves left   → mascot LEFT
+};
 
 // ─── SINE-WAVE CONSTANTS ──────────────────────────────────────
 const SINE_AMPLITUDE = 55;
@@ -123,13 +127,13 @@ const MascotItem = ({ image, style }: { image: any; style?: any }) => {
   return (
     <Animated.Image
       source={image}
-      style={[{ width: 80, height: 80, resizeMode: 'contain' }, animStyle, style]}
+      style={[{ width: 100, height: 100, resizeMode: 'contain' }, animStyle, style]}
     />
   );
 };
 
 // ─── HELPER: Is this node in the red (bearish) section? ───────
-const isRedSection = (index: number): boolean => index >= 6;
+const isRedSection = (index: number): boolean => index >= 4;
 
 // ─── HELPER: Get accent color for a node by index ─────────────
 const getNodeAccent = (index: number) =>
@@ -138,10 +142,7 @@ const getNodeAccent = (index: number) =>
 const getNodeDark = (index: number) =>
   isRedSection(index) ? THEME.redDark : THEME.blueDark;
 
-const getConnectorColor = (index: number, status: string) => {
-  if (status === 'locked') return THEME.connectorLocked;
-  return isRedSection(index) ? THEME.connectorRed : THEME.connectorBlue;
-};
+
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
@@ -163,111 +164,114 @@ export default function LearnScreen() {
     ).start();
   }, [bounceAnim]);
 
-  // ─── RENDER A SINGLE TRAIL NODE ───────────────────────────
-  const renderTrailNode = (node: MockNode, index: number) => {
+  // ─── NODE CIRCLE (pure visual, no lines) ──────────────────
+  const renderNodeCircle = (node: MockNode, index: number) => {
     const isCompleted = node.status === 'completed';
     const isActive = node.status === 'active';
     const isLocked = node.status === 'locked';
-    const isLandmark = node.isLandmark === true;
-
-    const horizontalOffset = getSineOffset(index);
     const accent = getNodeAccent(index);
     const dark = getNodeDark(index);
 
-    // ── LANDMARK CHECKPOINT NODE ──────────────────────────
-    if (isLandmark) {
+    if (isCompleted) {
       return (
-        <View key={node.id} style={styles.pathRow}>
-          {/* Node wrapper */}
-          <View
-            style={[
-              styles.nodeWrapper,
-              { transform: [{ translateX: horizontalOffset }] },
-            ]}
-          >
-            <RNAnimated.Text
-              style={[
-                styles.landmarkEmoji,
-                isActive && { transform: [{ translateY: bounceAnim }] },
-                isLocked && { opacity: 0.45 },
-              ]}
-            >
-              🏛️
-            </RNAnimated.Text>
-            <Text
-              style={[
-                styles.landmarkLabel,
-                { color: isLocked ? THEME.textMuted : accent },
-              ]}
-            >
-              {node.title}
-            </Text>
+        <View style={[styles.nodeOuter3D, { backgroundColor: dark }]}>
+          <View style={[styles.nodeInner, { backgroundColor: accent, shadowColor: accent }]}>
+            <MaterialCommunityIcons name="check-bold" size={32} color="#FFF" />
           </View>
         </View>
       );
     }
-
-    // ── STANDARD CIRCLE NODE ──────────────────────────────
-    const NodeCircle = () => {
-      if (isCompleted) {
-        return (
-          <View style={[styles.nodeOuter3D, { backgroundColor: dark }]}>
-            <View
-              style={[
-                styles.nodeInner,
-                {
-                  backgroundColor: accent,
-                  shadowColor: accent,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name="check-bold" size={32} color="#FFF" />
-            </View>
-          </View>
-        );
-      }
-
-      if (isActive) {
-        return (
-          <View style={[styles.nodeOuter3D, { backgroundColor: dark }]}>
-            <View
-              style={[
-                styles.nodeInner,
-                {
-                  backgroundColor: accent,
-                  shadowColor: accent,
-                  shadowOpacity: 0.5,
-                  shadowRadius: 12,
-                  elevation: 10,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name="star-four-points" size={32} color="#FFF" />
-            </View>
-          </View>
-        );
-      }
-
-      // Locked
+    if (isActive) {
       return (
-        <View style={[styles.nodeOuter3D_locked]}>
-          <View style={styles.nodeInner_locked}>
-            <MaterialCommunityIcons name="lock" size={26} color={THEME.textMuted} />
+        <View style={[styles.nodeOuter3D, { backgroundColor: dark }]}>
+          <View
+            style={[
+              styles.nodeInner,
+              { backgroundColor: accent, shadowColor: accent, shadowOpacity: 0.5, shadowRadius: 12, elevation: 10 },
+            ]}
+          >
+            <MaterialCommunityIcons name="star-four-points" size={32} color="#FFF" />
           </View>
         </View>
       );
-    };
-
+    }
     return (
-      <View key={node.id} style={styles.pathRow}>
-        {/* Node wrapper — translateX drives the sine weave */}
-        <View
+      <View style={styles.nodeOuter3D_locked}>
+        <View style={styles.nodeInner_locked}>
+          <MaterialCommunityIcons name="lock" size={26} color={THEME.textMuted} />
+        </View>
+      </View>
+    );
+  };
+
+  // ─── RENDER A SINGLE TRAIL ROW ────────────────────────────
+  // At mascot indices (1, 4, 7, 10) the node sits inside a
+  // horizontal row with the mascot on the opposite curve side.
+  // All other indices render a plain centred node row.
+  const renderTrailRow = (node: MockNode, index: number) => {
+    const horizontalOffset = getSineOffset(index);
+    const isLandmark = node.isLandmark === true;
+    const accent = getNodeAccent(index);
+    const mascotSlot = MASCOT_SLOTS[index];
+
+    // ── Build the node element ──────────────────────────
+    const nodeElement = isLandmark ? (
+      <View style={styles.nodeWrapper}>
+        <RNAnimated.Text
           style={[
-            styles.nodeWrapper,
-            { transform: [{ translateX: horizontalOffset }] },
+            styles.landmarkEmoji,
+            node.status === 'active' && { transform: [{ translateY: bounceAnim }] },
+            node.status === 'locked' && { opacity: 0.45 },
           ]}
         >
-          <NodeCircle />
+          🏛️
+        </RNAnimated.Text>
+        <Text style={[styles.landmarkLabel, { color: node.status === 'locked' ? THEME.textMuted : accent }]}>
+          {node.title}
+        </Text>
+      </View>
+    ) : (
+      <View style={styles.nodeWrapper}>
+        {renderNodeCircle(node, index)}
+      </View>
+    );
+
+    // ── Mascot row: node + mascot side-by-side ──────────
+    if (mascotSlot) {
+      const mascotView = (
+        <View style={styles.mascotSlotContainer}>
+          <MascotItem image={mascotSlot.image} />
+        </View>
+      );
+
+      return (
+        <View key={node.id} style={styles.mascotRow}>
+          {mascotSlot.side === 'left' ? (
+            <>
+              {mascotView}
+              <View style={[styles.nodeCenter, { transform: [{ translateX: horizontalOffset }] }]}>
+                {nodeElement}
+              </View>
+              <View style={styles.mascotSlotSpacer} />
+            </>
+          ) : (
+            <>
+              <View style={styles.mascotSlotSpacer} />
+              <View style={[styles.nodeCenter, { transform: [{ translateX: horizontalOffset }] }]}>
+                {nodeElement}
+              </View>
+              {mascotView}
+            </>
+          )}
+        </View>
+      );
+    }
+
+    // ── Plain row: just the node centred ─────────────────
+    return (
+      <View key={node.id} style={styles.pathRow}>
+        <View style={{ transform: [{ translateX: horizontalOffset }] }}>
+          {nodeElement}
         </View>
       </View>
     );
@@ -327,38 +331,19 @@ export default function LearnScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Blue section nodes (indices 0–5) */}
-        {MOCK_NODES.slice(0, 6).map((node, index) => renderTrailNode(node, index))}
-
-        {/* Section divider */}
-        {renderSectionDivider()}
-
-        {/* Red section nodes (indices 6–11) */}
-        {MOCK_NODES.slice(6).map((node, index) => renderTrailNode(node, index + 6))}
+        {MOCK_NODES.map((node, index) => {
+          const elements = [];
+          // Inject the section divider between blue set (index 3) and red set (index 4)
+          if (index === 4) {
+            elements.push(<React.Fragment key="divider">{renderSectionDivider()}</React.Fragment>);
+          }
+          elements.push(renderTrailRow(node, index));
+          return elements;
+        })}
 
         {/* Bottom padding */}
         <View style={{ height: 60 }} />
       </ScrollView>
-
-      {/* ═══════════════════════════════════════════════════════
-          STATIC MASCOT OVERLAYS — absolutely positioned,
-          anchored to the scroll container, NOT following screen
-          ═══════════════════════════════════════════════════════ */}
-
-      {/* Mascot #1 — Blue Section: Shiba Suit near node 2-3 (left side) */}
-      <View style={styles.mascotBlueSection} pointerEvents="none">
-        <MascotItem image={SHIBA_SUIT_IMG} />
-      </View>
-
-      {/* Mascot #2 — Red Section: Shiba Suit near node 7 (left side) */}
-      <View style={styles.mascotRedLeft} pointerEvents="none">
-        <MascotItem image={SHIBA_SUIT_IMG} />
-      </View>
-
-      {/* Mascot #3 — Red Section: Shiba Cash near node 10 (right side) */}
-      <View style={styles.mascotRedRight} pointerEvents="none">
-        <MascotItem image={SHIBA_CASH_IMG} />
-      </View>
     </SafeAreaView>
   );
 }
@@ -538,43 +523,27 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // ─── STATIC MASCOT PLACEMENTS ─────────────────────────────
-  // Mascot #1: Blue section, near node 2-3, left side
-  mascotBlueSection: {
-    position: 'absolute',
-    // Approximate vertical position for node index ~2–3
-    // statusBar(~50) + unitHeader(~80) + scrollPaddingTop(14) + 2.5*ROW_HEIGHT
-    top: 370,
-    left: 16,
-    zIndex: 99,
-    width: 90,
-    height: 90,
+  // ─── INLINE MASCOT ROW ─────────────────────────────────────
+  mascotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+    height: ROW_HEIGHT,
+    overflow: 'visible',
+  },
+  mascotSlotContainer: {
+    width: 100,
+    height: 100,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Mascot #2: Red section, near node 7, left side
-  mascotRedLeft: {
-    position: 'absolute',
-    // ~statusBar + unitHeader + 7*ROW_HEIGHT + sectionDivider
-    top: 830,
-    left: 16,
-    zIndex: 99,
-    width: 90,
-    height: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
+  mascotSlotSpacer: {
+    width: 100,
   },
-
-  // Mascot #3: Red section, near node 10, right side
-  mascotRedRight: {
-    position: 'absolute',
-    top: 1080,
-    right: 16,
-    zIndex: 99,
-    width: 90,
-    height: 90,
-    justifyContent: 'center',
+  nodeCenter: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
 });
