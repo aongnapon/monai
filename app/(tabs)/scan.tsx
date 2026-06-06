@@ -11,16 +11,18 @@ import {
   where
 } from '@react-native-firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   CheckCircle2,
   ChevronRight,
+  Landmark,
+  Radar,
   Scan,
-  ShieldCheck
+  Zap,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -34,6 +36,7 @@ import {
   UIManager,
   View
 } from 'react-native';
+import { LineChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -55,6 +58,7 @@ const C = {
   textSecondary: '#64748B',          // Slate grey subtitles/secondary labels
   textMuted: '#64748B',              // Slate grey muted
   border: '#E2E8F0',                 // Soft light slate border
+  gradient: ['#FFFFFF', '#F8FAFC'] as const, // Subtle premium gradient
 };
 
 // ─── INTERFACES ──────────────────────────────────────────────
@@ -71,10 +75,22 @@ const MASCOT_MAP = {
 };
 
 const SCAN_TOOLS = [
-  { id: 'fed', title: 'Federal Macro-Pulse AI', emoji: '🏛️', focus: 'FOMC and Macro Policy' },
-  { id: 'bank', title: 'Bank Alpha-Whale Scanner', emoji: '🏦', focus: 'Institutional Liquidity' },
-  { id: 'crypto', title: 'Crypto Momentum Engine', emoji: '⚡', focus: 'Crypto Volatility and On-chain' },
+  { id: 'fed',    title: 'Federal Macro-Pulse AI',   icon: 'landmark' as const, focus: 'FOMC and Macro Policy' },
+  { id: 'bank',   title: 'Bank Alpha-Whale Scanner', icon: 'radar'    as const, focus: 'Institutional Liquidity' },
+  { id: 'crypto', title: 'Crypto Momentum Engine',   icon: 'zap'      as const, focus: 'Crypto Volatility and On-chain' },
 ];
+
+/** Renders the correct Lucide vector icon for a scan tool */
+const ToolIcon = ({ iconName, active }: { iconName: string; active: boolean }) => {
+  const color = active ? '#1E3A8A' : '#64748B';
+  const size = 22;
+  switch (iconName) {
+    case 'landmark': return <Landmark size={size} color={color} />;
+    case 'radar':    return <Radar    size={size} color={color} />;
+    case 'zap':      return <Zap      size={size} color={color} />;
+    default:         return <Scan     size={size} color={color} />;
+  }
+};
 
 export default function ScanScreen() {
   const { user } = useAuth();
@@ -84,6 +100,8 @@ export default function ScanScreen() {
   const [history, setHistory] = useState<LocalScanResult[]>([]);
   const [activeAnalysis, setActiveAnalysis] = useState<LocalScanResult | null>(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [selectedScenario, setSelectedScenario] = useState<'Bullish' | 'Sideways' | 'Bearish'>('Bullish');
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideListRef = useRef<FlatList>(null);
@@ -128,6 +146,7 @@ export default function ScanScreen() {
 
     setIsScanning(true);
     setActiveAnalysis(null);
+    setScanError(null);
 
     try {
       const result = await analyzeMarketScan(
@@ -149,35 +168,129 @@ export default function ScanScreen() {
       setActiveSlideIndex(0);
     } catch (error: any) {
       console.error('Scan Error:', error);
-      Alert.alert('Analysis Failed', 'Could not process the chart. Please try again.');
+      setScanError('Analysis failed: Could not locate key ticker metrics or process chart patterns.');
     } finally {
       setIsScanning(false);
     }
   };
 
-  const renderSlideContent = (item: PresentationSlide) => {
+  const renderSlideContent = (item: PresentationSlide, record: ScanResultDoc) => {
     const { slideHeading, bulletPointsList } = item;
 
     // Slide 1: Market Structure
     if (slideHeading.includes('Market Structure')) {
       const resistance = bulletPointsList[0]?.split(': ')[1] || 'N/A';
       const support = bulletPointsList[1]?.split(': ')[1] || 'N/A';
-      const trend = bulletPointsList[2] || '';
+      const trendAnalysisText = bulletPointsList[2]?.replace('Trend Analysis: ', '') || bulletPointsList[2] || '';
+
+      const { trend, confidenceScore, sentimentLevel } = record.dashboardData;
+      const trendColor = trend === 'Bullish' ? C.green : trend === 'Bearish' ? C.red : C.amber;
+
+      // Safe parsing of numerical values for the chart
+      const cleanValue = (valStr: string) => {
+        const cleaned = valStr.replace(/[^0-9.]/g, '');
+        return parseFloat(cleaned) || 0;
+      };
+
+      const val1 = cleanValue(support) || 100;
+      const val2 = cleanValue(resistance) || 150;
+      const supNum = Math.min(val1, val2);
+      const resNum = Math.max(val1, val2);
+      const diff = resNum - supNum || 50;
+
+      let chartData = [];
+      if (trend === 'Bullish') {
+        chartData = [
+          { value: supNum },
+          { value: supNum + diff * 0.15 },
+          { value: supNum + diff * 0.35 },
+          { value: supNum + diff * 0.30 },
+          { value: supNum + diff * 0.65 },
+          { value: supNum + diff * 0.80 },
+          { value: resNum },
+        ];
+      } else if (trend === 'Bearish') {
+        chartData = [
+          { value: resNum },
+          { value: resNum - diff * 0.15 },
+          { value: resNum - diff * 0.35 },
+          { value: resNum - diff * 0.30 },
+          { value: resNum - diff * 0.65 },
+          { value: resNum - diff * 0.80 },
+          { value: supNum },
+        ];
+      } else {
+        // Sideways / Consolidation
+        chartData = [
+          { value: supNum + diff * 0.40 },
+          { value: supNum + diff * 0.65 },
+          { value: supNum + diff * 0.30 },
+          { value: supNum + diff * 0.70 },
+          { value: supNum + diff * 0.45 },
+          { value: supNum + diff * 0.50 },
+        ];
+      }
 
       return (
         <View style={styles.specializedContent}>
-          <View style={styles.metricGrid}>
-            <View style={[styles.metricBlock, { borderLeftColor: C.red }]}>
-              <Text style={styles.blockLabel}>RESISTANCE</Text>
-              <Text style={styles.blockValue}>{resistance}</Text>
+          {/* Elegant horizontal metric row deck */}
+          <View style={styles.luxuryMetricRowDeck}>
+            <View style={styles.luxuryMetricCell}>
+              <Text style={styles.luxuryMetricLabel}>TREND</Text>
+              <Text style={[styles.luxuryMetricVal, { color: trendColor }]}>{trend.toUpperCase()}</Text>
             </View>
-            <View style={[styles.metricBlock, { borderLeftColor: C.green }]}>
-              <Text style={styles.blockLabel}>SUPPORT</Text>
-              <Text style={styles.blockValue}>{support}</Text>
+            <View style={styles.luxuryDivider} />
+            <View style={styles.luxuryMetricCell}>
+              <Text style={styles.luxuryMetricLabel}>CONFIDENCE</Text>
+              <Text style={styles.luxuryMetricVal}>{confidenceScore}%</Text>
+            </View>
+            <View style={styles.luxuryDivider} />
+            <View style={styles.luxuryMetricCell}>
+              <Text style={styles.luxuryMetricLabel}>SENTIMENT</Text>
+              <View style={styles.sentimentPips}>
+                {[1, 2, 3, 4, 5].map(s => (
+                  <View key={s} style={[styles.sentimentPip, { backgroundColor: s <= sentimentLevel ? C.accent : '#E2E8F0' }]} />
+                ))}
+              </View>
             </View>
           </View>
-          <View style={styles.summaryBox}>
-            <Text style={styles.summaryText}>{trend}</Text>
+
+          {/* Resistance & Support side-by-side cards */}
+          <View style={styles.metricGrid}>
+            <View style={styles.luxuryMetricCard}>
+              <Text style={styles.blockLabelMuted}>RESISTANCE</Text>
+              <Text style={[styles.blockValueBold, { color: C.red }]}>{resistance}</Text>
+            </View>
+            <View style={styles.luxuryMetricCard}>
+              <Text style={styles.blockLabelMuted}>SUPPORT</Text>
+              <Text style={[styles.blockValueBold, { color: C.green }]}>{support}</Text>
+            </View>
+          </View>
+
+          {/* Luxury Area Chart Asset representing Trend Path */}
+          <View style={styles.chartWrapper}>
+            <LineChart
+              areaChart
+              curved
+              data={chartData}
+              width={SCREEN_WIDTH - 96}
+              height={70}
+              thickness={2.5}
+              color={C.accent}
+              startFillColor="rgba(29, 78, 216, 0.12)"
+              endFillColor="rgba(29, 78, 216, 0.00)"
+              hideRules
+              hideAxesAndRules
+              hideDataPoints
+              initialSpacing={10}
+              endSpacing={10}
+            />
+          </View>
+
+          {/* Executive Brief Container Box */}
+          <View style={styles.executiveBriefContainer}>
+            <Text style={styles.executiveBriefLabel}>EXECUTIVE BRIEF</Text>
+            <Text style={styles.executiveBriefText}>{trendAnalysisText}</Text>
           </View>
         </View>
       );
@@ -187,39 +300,78 @@ export default function ScanScreen() {
     if (slideHeading.includes('Strategic Outlook')) {
       const targetStr = bulletPointsList[0]?.split(': ')[1] || '';
       const targets = targetStr.split(' | ');
+      const shortTermVal = targets[0]?.replace('Short: ', '') || 'N/A';
+      const midTermVal = targets[1]?.replace('Mid: ', '') || 'N/A';
+      const longTermVal = targets[2]?.replace('Long: ', '') || 'N/A';
+
       const probability = bulletPointsList[1]?.match(/\d+%/)?.[0] || '0%';
       const probValue = parseInt(probability) || 0;
-      const strategy = bulletPointsList[2]?.split(': ')[1] || bulletPointsList[2] || '';
+      const strategyText = bulletPointsList[2]?.split(': ')[1] || bulletPointsList[2] || '';
+
+      const { trend } = record.dashboardData;
 
       return (
         <View style={styles.specializedContent}>
-          <View style={styles.targetsRow}>
-            {targets.map((t, i) => (
-              <View key={i} style={styles.targetBadge}>
-                <Text style={styles.targetBadgeText}>{t}</Text>
-              </View>
-            ))}
-          </View>
-          
-          <View style={styles.probContainer}>
+
+          {/* Probability Indicator */}
+          <View style={styles.luxuryProbContainer}>
             <View style={styles.probHeader}>
-              <Text style={styles.blockLabel}>PROBABILITY</Text>
-              <Text style={styles.probValueText}>{probability}</Text>
+              <Text style={styles.blockLabelMuted}>PROBABILITY FORECAST</Text>
+              <Text style={styles.luxuryProbValueText}>{probability}</Text>
             </View>
-            <View style={styles.probTrack}>
-              <View style={[styles.probFill, { width: `${probValue}%` }]} />
+            <View style={styles.luxuryProbTrack}>
+              <View style={[styles.luxuryProbFill, { width: `${probValue}%` }]} />
             </View>
           </View>
 
-          <View style={styles.strategyBox}>
-            <ShieldCheck size={16} color={C.accent} />
-            <Text style={styles.strategyText}>{strategy}</Text>
+          {/* Strategy / Executive Brief */}
+          <View style={styles.executiveBriefContainer}>
+            <Text style={styles.executiveBriefLabel}>STRATEGIC RECOMMENDATION</Text>
+            <Text style={styles.executiveBriefText}>{strategyText}</Text>
           </View>
         </View>
       );
     }
 
-    // Slide 3: Catalysts & Risks (or default)
+    // Slide 3: Catalysts & Risks
+    if (slideHeading.includes('Catalysts & Risks')) {
+      const triggerPoint = bulletPointsList[0] || '';
+      const riskPoint = bulletPointsList[1] || '';
+      const catalystPoint = bulletPointsList[2] || '';
+
+      const triggerLabel = triggerPoint.split(': ')[0] || 'TRIGGER';
+      const triggerContent = triggerPoint.split(': ').slice(1).join(': ') || triggerPoint;
+
+      const riskLabel = riskPoint.split(': ')[0] || 'RISK FACTOR';
+      const riskContent = riskPoint.split(': ').slice(1).join(': ') || riskPoint;
+
+      const catalystLabel = catalystPoint.split(': ')[0] || 'MACRO CATALYST';
+      const catalystContent = catalystPoint.split(': ').slice(1).join(': ') || catalystPoint;
+
+      return (
+        <View style={styles.specializedContent}>
+          {/* Trigger events slot - clean borders-only presentation slot */}
+          <View style={styles.bordersOnlySlot}>
+            <Text style={styles.slotLabelMuted}>{triggerLabel.toUpperCase()}</Text>
+            <Text style={styles.slotContentText}>{triggerContent}</Text>
+          </View>
+
+          {/* Possible Risks slot - clean borders-only presentation slot */}
+          <View style={styles.bordersOnlySlot}>
+            <Text style={styles.slotLabelMuted}>{riskLabel.toUpperCase()}</Text>
+            <Text style={styles.slotContentText}>{riskContent}</Text>
+          </View>
+
+          {/* Final analytical summary paragraph wrapped inside an authoritative, wide-margined "Executive Brief" container box */}
+          <View style={styles.executiveBriefContainer}>
+            <Text style={styles.executiveBriefLabel}>{catalystLabel.toUpperCase()}</Text>
+            <Text style={styles.executiveBriefText}>{catalystContent}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Fallback slide content
     return (
       <View style={styles.bulletContainer}>
         {bulletPointsList.map((point, index) => {
@@ -227,17 +379,14 @@ export default function ScanScreen() {
           const content = rest.join(': ');
           
           return (
-            <View key={index} style={styles.bulletRow}>
+            <View key={index} style={styles.bordersOnlySlot}>
               {content ? (
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.blockLabel}>{label.toUpperCase()}</Text>
-                  <Text style={styles.bulletText}>{content}</Text>
+                  <Text style={styles.slotLabelMuted}>{label.toUpperCase()}</Text>
+                  <Text style={styles.slotContentText}>{content}</Text>
                 </View>
               ) : (
-                <>
-                  <View style={styles.bulletAccent} />
-                  <Text style={styles.bulletText}>{point}</Text>
-                </>
+                <Text style={styles.slotContentText}>{point}</Text>
               )}
             </View>
           );
@@ -246,51 +395,31 @@ export default function ScanScreen() {
     );
   };
 
-  const renderSlideItem = ({ item }: { item: PresentationSlide }) => (
+  const renderSlideItem = ({ item, record }: { item: PresentationSlide; record: ScanResultDoc }) => (
     <View style={styles.slideFrame}>
-      <View style={styles.slideCard}>
+      <LinearGradient
+        colors={C.gradient}
+        style={styles.slideCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <View style={styles.slideHeader}>
           <Image source={MASCOT_MAP[item.mascotExpression]} style={styles.slideMascot} />
           <Text style={styles.slideHeading}>{item.slideHeading}</Text>
         </View>
-        {renderSlideContent(item)}
-      </View>
+        {renderSlideContent(item, record)}
+      </LinearGradient>
     </View>
   );
 
   const renderDashboard = (record: ScanResultDoc) => {
-    const { trend, confidenceScore, sentimentLevel } = record.dashboardData;
-    const trendColor = trend === 'Bullish' ? C.green : trend === 'Bearish' ? C.red : C.amber;
-
     return (
       <View style={styles.dashboard}>
-        <View style={styles.metricRow}>
-          <View style={styles.miniCard}>
-            <Text style={styles.miniLabel}>TREND</Text>
-            <Text style={[styles.miniValue, { color: trendColor }]}>{trend.toUpperCase()}</Text>
-          </View>
-          <View style={styles.miniCard}>
-            <Text style={styles.miniLabel}>CONFIDENCE</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <ShieldCheck size={14} color={C.accent} />
-              <Text style={styles.miniValue}>{confidenceScore}%</Text>
-            </View>
-          </View>
-          <View style={styles.miniCard}>
-            <Text style={styles.miniLabel}>SENTIMENT</Text>
-            <View style={styles.stepGrid}>
-              {[1, 2, 3, 4, 5].map(s => (
-                <View key={s} style={[styles.step, { backgroundColor: s <= sentimentLevel ? C.accent : '#E2E8F0' }]} />
-              ))}
-            </View>
-          </View>
-        </View>
-
         <View style={styles.viewport}>
           <FlatList
             ref={slideListRef}
             data={record.presentationSlides}
-            renderItem={renderSlideItem}
+            renderItem={({ item }) => renderSlideItem({ item, record })}
             keyExtractor={item => item.slideOrder.toString()}
             horizontal
             pagingEnabled
@@ -310,7 +439,7 @@ export default function ScanScreen() {
           </View>
         </View>
 
-        <Pressable onPress={() => setActiveAnalysis(null)} style={styles.dismissBtn}>
+        <Pressable onPress={() => { setActiveAnalysis(null); setScanError(null); }} style={styles.dismissBtn}>
           <Text style={styles.dismissText}>Run New Scan</Text>
         </Pressable>
       </View>
@@ -332,50 +461,74 @@ export default function ScanScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         {activeTab === 'scan' ? (
-          activeAnalysis ? renderDashboard(activeAnalysis) : (
-            <View style={styles.home}>
-              <View style={styles.hero}>
-                <Image source={require('../../assets/images/mascots/fed.png')} style={styles.heroImg} />
-                <Text style={styles.heroTitle}>Multi-Modal Vision</Text>
-                <Text style={styles.heroSub}>Select an engine and upload a chart to begin.</Text>
+          scanError ? (
+            <View style={styles.errorContainer}>
+              <View style={styles.errorSlide}>
+                <View style={styles.errorHeader}>
+                  <Text style={styles.errorEmoji}>⚠️</Text>
+                  <Text style={styles.errorTitle}>Ticker Identification Alert</Text>
+                </View>
+                <View style={styles.executiveBriefContainer}>
+                  <Text style={styles.executiveBriefLabel}>DIAGNOSTIC STATUS</Text>
+                  <Text style={styles.executiveBriefText}>{scanError}</Text>
+                </View>
+                <Pressable onPress={() => setScanError(null)} style={styles.dismissBtn}>
+                  <Text style={styles.dismissText}>Reset Selector</Text>
+                </Pressable>
               </View>
+            </View>
+          ) : activeAnalysis ? (
+            renderDashboard(activeAnalysis)
+          ) : (
+            <View style={styles.home}>
+              <View style={styles.homeSlide}>
+                <View style={styles.hero}>
+                  <Image source={require('../../assets/images/mascots/fed.png')} style={styles.heroImg} />
+                  <Text style={styles.heroTitle}>Multi-Modal Vision</Text>
+                  <Text style={styles.heroSub}>Select target filters and upload your chart to begin.</Text>
+                </View>
 
-              <View style={styles.toolStack}>
-                {SCAN_TOOLS.map(tool => (
-                  <Pressable 
-                    key={tool.id} 
-                    onPress={() => setSelectedTool(tool)}
-                    style={[styles.toolRow, selectedTool.id === tool.id && styles.toolRowActive]}
-                  >
-                    <View style={styles.toolIcon}>
-                      <Text style={{ fontSize: 22 }}>{tool.emoji}</Text>
+
+                {/* Engine Selector */}
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionLabelMuted}>SELECT ANALYSIS ENGINE</Text>
+                <View style={styles.toolStack}>
+                  {SCAN_TOOLS.map(tool => (
+                    <Pressable 
+                      key={tool.id} 
+                      onPress={() => setSelectedTool(tool)}
+                      style={[styles.toolRow, selectedTool.id === tool.id && styles.toolRowActive]}
+                    >
+                      <View style={[styles.toolIcon, selectedTool.id === tool.id && styles.toolIconActive]}>
+                      <ToolIcon iconName={tool.icon} active={selectedTool.id === tool.id} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.toolName}>{tool.title}</Text>
                       <Text style={styles.toolFocus}>{tool.focus}</Text>
                     </View>
-                    {selectedTool.id === tool.id && <CheckCircle2 color={C.accent} size={20} />}
-                  </Pressable>
-                ))}
-              </View>
+                    {selectedTool.id === tool.id && <CheckCircle2 color={C.accent} size={16} />}
+                    </Pressable>
+                  ))}
+                </View>
 
-              <Animated.View style={{ transform: [{ scale: pulseAnim }], marginTop: 20, paddingHorizontal: 20 }}>
-                <Pressable onPress={executeScan} disabled={isScanning} style={styles.scanBtn}>
-                  {isScanning ? <ActivityIndicator color="#FFF" /> : (
-                    <>
-                      <Scan color="#FFF" size={24} />
-                      <Text style={styles.scanBtnText}>Analyze Chart</Text>
-                    </>
-                  )}
-                </Pressable>
-              </Animated.View>
+                <Animated.View style={{ transform: [{ scale: pulseAnim }], marginTop: 24 }}>
+                  <Pressable onPress={executeScan} disabled={isScanning} style={styles.scanBtn}>
+                    {isScanning ? <ActivityIndicator color="#FFF" /> : (
+                      <>
+                        <Scan color="#FFF" size={20} />
+                        <Text style={styles.scanBtnText}>Analyze Chart</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </Animated.View>
+              </View>
             </View>
           )
         ) : (
           <View style={styles.history}>
             {history.map(item => (
               <Pressable key={item.id} style={styles.historyCard} onPress={() => { setActiveAnalysis(item); setActiveTab('scan'); }}>
-                <View style={styles.historyIcon}><Text style={{ fontSize: 20 }}>{SCAN_TOOLS.find(t => t.id === item.scanCategory)?.emoji || '📊'}</Text></View>
+                <View style={styles.historyIcon}><ToolIcon iconName={SCAN_TOOLS.find(t => t.id === item.scanCategory)?.icon || 'scan'} active={false} /></View>
                 <View style={{ flex: 1, marginLeft: 15 }}>
                   <Text style={styles.historyTitle}>{item.presentationSlides?.[0]?.slideHeading || 'Analysis'}</Text>
                   <Text style={styles.historyMeta}>{(item.scanCategory || 'crypto').toUpperCase()} • COMPLETED</Text>
@@ -399,70 +552,146 @@ const styles = StyleSheet.create({
   tabLabelActive: { color: '#FFFFFF' },
 
   home: { paddingBottom: 0 },
+  homeSlide: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 20, 
+    padding: 20, 
+    borderWidth: 1, 
+    borderColor: C.border, 
+    shadowColor: '#0A1128', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 12, 
+    elevation: 3, 
+    marginHorizontal: 20, 
+    marginVertical: 10 
+  },
   hero: { alignItems: 'center', marginTop: -5, marginBottom: 0 },
-  heroImg: { width: 350, height: 200, resizeMode: 'contain', marginBottom: 5 },
-  heroTitle: { color: C.textPrimary, fontSize: 24, fontWeight: '900' },
-  heroSub: { color: C.textSecondary, fontSize: 14, marginTop: 8 },
-  toolStack: { paddingHorizontal: 20, gap: 8 },
-  toolRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: 'transparent' },
+  heroImg: { width: 320, height: 160, resizeMode: 'contain', marginBottom: 5 },
+  heroTitle: { color: C.textPrimary, fontSize: 22, fontWeight: '900' },
+  heroSub: { color: C.textSecondary, fontSize: 12, marginTop: 4, textAlign: 'center', paddingHorizontal: 10 },
+  sectionDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 16 },
+  sectionLabelMuted: { color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, marginBottom: 12 },
+  
+  toolStack: { gap: 6 },
+  toolRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: 'transparent' },
   toolRowActive: { borderColor: C.accent, backgroundColor: '#FFFFFF' },
-  toolIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  toolName: { color: C.textPrimary, fontSize: 15, fontWeight: '800' },
-  toolFocus: { color: C.textMuted, fontSize: 11, marginTop: 2 },
-  scanBtn: { backgroundColor: C.accent, paddingVertical: 14, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-  scanBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
+  toolIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  toolIconActive: { backgroundColor: 'rgba(29, 78, 216, 0.06)' },
+  toolName: { color: C.textPrimary, fontSize: 13, fontWeight: '800' },
+  toolFocus: { color: C.textMuted, fontSize: 10, marginTop: 1 },
+  scanBtn: { backgroundColor: C.accent, paddingVertical: 14, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  scanBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+
+  errorContainer: { paddingHorizontal: 20, marginVertical: 10 },
+  errorSlide: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 20, 
+    padding: 24, 
+    borderWidth: 1, 
+    borderColor: C.border, 
+    shadowColor: '#0A1128', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 12, 
+    elevation: 3 
+  },
+  errorHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
+  errorEmoji: { fontSize: 28 },
+  errorTitle: { color: C.textPrimary, fontSize: 16, fontWeight: '800' },
 
   dashboard: { paddingHorizontal: 0 },
-  metricRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 10 },
-  miniCard: { flex: 1, backgroundColor: C.surface, padding: 14, borderRadius: 16, alignItems: 'center' },
-  miniLabel: { color: C.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
-  miniValue: { color: C.textPrimary, fontSize: 14, fontWeight: '900' },
-  stepGrid: { flexDirection: 'row', gap: 3 },
-  step: { width: 5, height: 10, borderRadius: 2 },
-
-  viewport: { height: 340 },
-  slideFrame: { width: SCREEN_WIDTH, paddingHorizontal: 20 },
-  slideCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 20, justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  slideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 15 },
-  slideMascot: { width: 64, height: 64, resizeMode: 'contain' },
-  slideHeading: { flex: 1, color: C.textPrimary, fontSize: 20, fontWeight: '900' },
+  viewport: { height: 510 },
+  slideFrame: { width: SCREEN_WIDTH, paddingHorizontal: 20, paddingVertical: 10 },
+  slideCard: { 
+    flex: 1, 
+    borderRadius: 20, 
+    padding: 20, 
+    borderWidth: 1, 
+    borderColor: '#E2E8F0',
+    shadowColor: '#0A1128',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  slideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
+  slideMascot: { width: 44, height: 44, resizeMode: 'contain' },
+  slideHeading: { flex: 1, color: C.textPrimary, fontSize: 18, fontWeight: '900' },
   bulletContainer: { gap: 8 },
-  bulletRow: { flexDirection: 'row', backgroundColor: C.surface, padding: 12, borderRadius: 16, alignItems: 'center' },
-  bulletAccent: { width: 4, height: '100%', backgroundColor: C.accent, borderRadius: 2, marginRight: 15 },
-  bulletText: { flex: 1, color: C.textPrimary, fontSize: 13, fontWeight: '600', lineHeight: 20 },
   
-  paginationRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 15 },
+  paginationRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E8F0' },
   dotActive: { width: 24, backgroundColor: C.accent },
 
-  dismissBtn: { marginHorizontal: 20, marginTop: 15, paddingVertical: 14, alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border },
-  dismissText: { color: C.textPrimary, fontWeight: '800', fontSize: 14 },
+  dismissBtn: { marginHorizontal: 20, marginTop: 16, paddingVertical: 14, alignItems: 'center', backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border },
+  dismissText: { color: C.textPrimary, fontWeight: '800', fontSize: 13 },
 
   history: { paddingHorizontal: 20 },
-  historyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, padding: 16, borderRadius: 18, marginBottom: 8 },
-  historyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+  historyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, padding: 16, borderRadius: 16, marginBottom: 8 },
+  historyIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
   historyTitle: { color: C.textPrimary, fontSize: 14, fontWeight: '800' },
   historyMeta: { color: C.textMuted, fontSize: 10, marginTop: 4, fontWeight: '700' },
 
   // Specialized Slide Styles
   specializedContent: { flex: 1, gap: 10 },
-  metricGrid: { flexDirection: 'row', gap: 12 },
-  metricBlock: { flex: 1, backgroundColor: C.surface, padding: 12, borderRadius: 16, borderLeftWidth: 4 },
-  blockLabel: { color: C.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
-  blockValue: { color: C.textPrimary, fontSize: 13, fontWeight: '800' },
-  summaryBox: { backgroundColor: C.surface, padding: 12, borderRadius: 16 },
-  summaryText: { color: C.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  metricGrid: { flexDirection: 'row', gap: 10 },
   
-  targetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  targetBadge: { backgroundColor: 'rgba(29, 78, 216, 0.08)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(29, 78, 216, 0.15)' },
-  targetBadgeText: { color: C.accent, fontSize: 10, fontWeight: '800' },
+  chartWrapper: {
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    paddingVertical: 4,
+    marginVertical: 2,
+  },
   
-  probContainer: { backgroundColor: C.surface, padding: 12, borderRadius: 16 },
-  probHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  probValueText: { color: C.textPrimary, fontSize: 14, fontWeight: '900' },
-  probTrack: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
-  probFill: { height: '100%', backgroundColor: C.accent },
-  
-  strategyBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(16, 185, 129, 0.08)', padding: 12, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: C.green },
-  strategyText: { flex: 1, color: C.textPrimary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
+  // Slide 1 Market Structure styles
+  luxuryMetricRowDeck: { 
+    flexDirection: 'row', 
+    backgroundColor: C.surface, 
+    borderRadius: 14, 
+    padding: 12, 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: C.border 
+  },
+  luxuryMetricCell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  luxuryDivider: { width: 1, height: '60%', backgroundColor: '#E2E8F0' },
+  luxuryMetricLabel: { color: C.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 },
+  luxuryMetricVal: { color: C.textPrimary, fontSize: 13, fontWeight: '900' },
+  sentimentPips: { flexDirection: 'row', gap: 3, marginTop: 4 },
+  sentimentPip: { width: 6, height: 10, borderRadius: 1.5 },
+
+  luxuryMetricCard: { flex: 1, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center' },
+  blockLabelMuted: { color: C.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 },
+  blockValueBold: { fontSize: 13, fontWeight: '900' },
+
+  executiveBriefContainer: { 
+    backgroundColor: '#F8FAFC', 
+    padding: 14, 
+    borderRadius: 14, 
+    borderWidth: 1, 
+    borderColor: C.border, 
+    borderLeftWidth: 4, 
+    borderLeftColor: C.accent 
+  },
+  executiveBriefLabel: { color: C.accent, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
+  executiveBriefText: { color: C.textPrimary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+
+
+  luxuryProbContainer: { backgroundColor: C.surface, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  luxuryProbValueText: { color: C.textPrimary, fontSize: 13, fontWeight: '900' },
+  luxuryProbTrack: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden', marginTop: 4 },
+  luxuryProbFill: { height: '100%', backgroundColor: C.accent },
+
+  // Slide 3 Catalysts & Risks styles
+  bordersOnlySlot: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: C.border },
+  slotLabelMuted: { color: C.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 },
+  slotContentText: { color: C.textPrimary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
 });
