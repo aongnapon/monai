@@ -141,3 +141,134 @@ JSON Schema Blueprint:
     throw new Error("Market analysis engine failed to generate structured response.");
   }
 }
+
+/**
+ * FIRESTORE-COMPATIBLE AND FINELO-COMPATIBLE RESPONSE SCHEMA
+ */
+export interface MarketAnalysisResult {
+  assetName: string;
+  currentPrice: string;
+  action: 'BUY' | 'SELL' | 'HOLD';
+  actionScore: number; // 1 to 4 for visual appraisal gauge
+  trend: string;
+  volatility: string;
+  resistance: string;
+  support: string;
+  probability: string; // e.g. "75%"
+  summary: string;
+  shortTermTarget: string;
+  midTermTarget: string;
+  longTermTarget: string;
+  triggers: string[];
+  risks: string[];
+}
+
+/**
+ * Helper to convert local file URI to base64 using standard Fetch and FileReader
+ */
+async function uriToBase64(uri: string): Promise<string> {
+  if (uri.startsWith('data:')) {
+    const parts = uri.split(',');
+    return parts[1] || parts[0];
+  }
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.split(',')[1] || result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Analyzes market chart and returns a premium, PowerPoint-style Finelo-compatible payload.
+ */
+export async function analyzeMarketChart(
+  imageUri: string,
+  engine: string
+): Promise<MarketAnalysisResult> {
+  // Resolve engine parameter to expected macro | whale | crypto activeEngine values
+  const engineMap: Record<string, 'macro' | 'whale' | 'crypto'> = {
+    fed: 'macro',
+    bank: 'whale',
+    crypto: 'crypto',
+    macro: 'macro',
+    whale: 'whale',
+  };
+  const activeEngine = engineMap[engine] || 'crypto';
+
+  const base64Image = await uriToBase64(imageUri);
+  const mimeType = imageUri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+
+  const prompt = `Analyze the provided market chart image for the [${activeEngine.toUpperCase()}] engine.
+You are the primary financial analysis engine for a premium mobile intelligence application, Finelo.
+
+CRITICAL INSTRUCTIONS:
+1. Extract or determine:
+   - "assetName": Name of the asset shown in the chart (e.g., "Gold Bullion 96.5% purity", "Bitcoin (BTC)", "Nasdaq 100", or a generic asset name if not clear).
+   - "currentPrice": Last traded price visible (e.g. "฿72,100.00", "$68,540.00", "₩1,200.00" or similar). Include the currency symbol.
+   - "action": Recommended action ('BUY', 'SELL', 'HOLD') based on technical indicators.
+   - "actionScore": An integer from 1 to 4 representing recommended action strength (1 = weak, 4 = strong).
+   - "trend": Short description of the trend (e.g., "Bullish", "Bearish", "Sideways").
+   - "volatility": Assessment of volatility (e.g., "Low", "Medium", "High").
+   - "resistance": Calculated resistance ceiling price metric (e.g. "฿72,100" or "$68,500").
+   - "support": Calculated support floor price metric (e.g. "฿61,900" or "$62,000").
+   - "probability": Scenario probability percentage string (e.g., "75%", "82%").
+   - "summary": A premium, detailed paragraph summarizing the technical analysis, chart patterns, and outlook.
+   - "shortTermTarget": Price target for short-term horizon (e.g. "฿72,500.00").
+   - "midTermTarget": Price target for mid-term horizon (e.g. "฿74,000.00").
+   - "longTermTarget": Price target for long-term horizon (e.g. "฿76,000.00").
+   - "triggers": EXACTLY 3 key upcoming trigger events/catalysts in an array of strings.
+   - "risks": EXACTLY 3 key systemic risks/threats in an array of strings.
+
+2. Output exclusively a raw, valid JSON object matching the schema. Do not output markdown code blocks. Do not include conversational prose.
+
+JSON Schema:
+{
+  "assetName": string,
+  "currentPrice": string,
+  "action": "BUY" | "SELL" | "HOLD",
+  "actionScore": number,
+  "trend": string,
+  "volatility": string,
+  "resistance": string,
+  "support": string,
+  "probability": string,
+  "summary": string,
+  "shortTermTarget": string,
+  "midTermTarget": string,
+  "longTermTarget": string,
+  "triggers": [string, string, string],
+  "risks": [string, string, string]
+}`;
+
+  try {
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType,
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    let rawJson = response.text().trim();
+
+    if (rawJson.startsWith("```")) {
+      rawJson = rawJson.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    }
+
+    return JSON.parse(rawJson) as MarketAnalysisResult;
+  } catch (error: any) {
+    console.error("[Gemini Engine] Analysis Error:", error);
+    throw new Error("Market analysis engine failed to generate structured response.");
+  }
+}
+
