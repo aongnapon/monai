@@ -36,6 +36,9 @@ type SlideType =
   | 'VISUAL_GRID_SELECT'
   | 'COMPARE_EQUATION'
   | 'IMAGE_LABEL_MATCH'
+  | 'TAP_PAIRS_MATCH'
+  | 'SLIDER_GUESS_PERCENT'
+  | 'CHART_STORY_TAP'
   | 'STANDARD_END';
 
 interface MockSlide {
@@ -51,6 +54,14 @@ interface MockSlide {
   centerEmoji?: string;
   showMascot: boolean;
   mascotAnimation?: 'welcome' | 'celebrate' | 'thinking' | 'caution';
+  // TAP_PAIRS_MATCH
+  leftTerms?: string[];
+  rightMatches?: string[];
+  // SLIDER_GUESS_PERCENT
+  targetPercent?: number;
+  // CHART_STORY_TAP
+  choices?: string[];
+  correctChoiceIndex?: number;
 }
 
 interface MockCourse {
@@ -227,6 +238,52 @@ const MOCK_COURSES: Record<string, MockCourse> = {
       },
     ],
   },
+
+  // ── COURSE 4 (Node 3): Corporate Microstructure ──
+  n4: {
+    courseId: 'n4',
+    title: 'Corporate Microstructure',
+    slides: [
+      {
+        id: 'c4-s1',
+        type: 'TAP_PAIRS_MATCH',
+        emoji: '🧩',
+        text: 'Vocabulary Sync',
+        prompt: 'Match the macro term to its institutional definition:',
+        leftTerms: ['Federal Reserve', 'Liquidity', 'Inflation'],
+        rightMatches: ['Central Bank', 'Available Cash', 'Price Rise'],
+        showMascot: false,
+      },
+      {
+        id: 'c4-s2',
+        type: 'SLIDER_GUESS_PERCENT',
+        emoji: '🎛️',
+        text: 'Risk Parameters',
+        prompt: 'What percentage of retail options traders lose money due to implied volatility crush?',
+        targetPercent: 85,
+        showMascot: false,
+      },
+      {
+        id: 'c4-s3',
+        type: 'CHART_STORY_TAP',
+        emoji: '📊',
+        text: 'Simulated Price Action',
+        prompt: 'The Federal Reserve unexpectedly hikes rates by 50bps. Evaluate the immediate corporate bond market reaction:',
+        choices: ['🟢 Liquidity Surge / Rally', '🔴 Capital Flight / Breakdown'],
+        correctChoiceIndex: 1,
+        showMascot: false,
+      },
+      {
+        id: 'c4-s4',
+        type: 'STANDARD_END',
+        emoji: '🏛️',
+        text: 'Microstructure parameters calibrated. You are ready to analyze corporate asset sheets!',
+        highlightText: 'Corporate Protocol Initialized',
+        showMascot: true,
+        mascotAnimation: 'celebrate',
+      },
+    ],
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -240,14 +297,16 @@ type MockNode = {
 };
 
 const MOCK_NODES: MockNode[] = [
-  { id: 'n1', title: 'Market Basics',        status: 'completed' },
-  { id: 'n2', title: 'Candlestick Patterns', status: 'completed' },
-  { id: 'n3', title: 'Support & Resistance', status: 'active' },
-  { id: 'n4', title: 'Bullish Milestone',    status: 'locked', isLandmark: true },
-  { id: 'n5', title: 'Short Selling 101',    status: 'locked' },
-  { id: 'n6', title: 'Put Options',          status: 'locked' },
-  { id: 'n7', title: 'Bear Flags & Wedges',  status: 'locked' },
-  { id: 'n8', title: 'Bearish Milestone',    status: 'locked', isLandmark: true },
+  // ── Global Macro & Fed Policy (Indices 0–3) ──
+  { id: 'n1', title: 'Macro Fundamentals',         status: 'completed' },
+  { id: 'n2', title: 'Candlestick Anatomy',        status: 'completed' },
+  { id: 'n3', title: 'Support & Resistance',       status: 'completed' },
+  { id: 'n4', title: 'Federal Macro-Pulse Landmark', status: 'active', isLandmark: true },
+  // ── Corporate Finance & Microstructure (Indices 4–7) ──
+  { id: 'n5', title: 'Credit Analysis',            status: 'locked' },
+  { id: 'n6', title: 'Corporate Bonds',            status: 'locked' },
+  { id: 'n7', title: 'Equity Valuation',           status: 'locked' },
+  { id: 'n8', title: 'Institutional Liquidity Landmark', status: 'locked', isLandmark: true },
 ];
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
@@ -255,13 +314,15 @@ const THEME = {
   bg: '#FFFFFF',
   bgElevated: '#F8FAFC',
   bgCard: '#F8FAFC',
-  blueAccent: '#1D4ED8',
-  blueDark: '#1E40AF',
-  blueGlow: 'rgba(29, 78, 216, 0.35)',
-  redAccent: '#991B1B',
-  redDark: '#7F1D1D',
-  redMid: '#B91C1C',
-  redGlow: 'rgba(153, 27, 27, 0.35)',
+  // Institutional Navy (indices 0–3: Global Macro & Fed Policy)
+  blueAccent: '#1E3A8A',
+  blueDark: '#1E3370',
+  blueGlow: 'rgba(30, 58, 138, 0.35)',
+  // Deep Crimson (indices 4–7: Corporate Finance & Microstructure)
+  redAccent: '#7F1D1D',
+  redDark: '#6B1616',
+  redMid: '#991B1B',
+  redGlow: 'rgba(127, 29, 29, 0.35)',
   gold: '#F59E0B',
   orange: '#F59E0B',
   red: '#EF4444',
@@ -499,6 +560,183 @@ const ImageLabelMatchView = ({ slide, onNext }: { slide: MockSlide; onNext: () =
     </View>
   );
 };
+// ─── TAP PAIRS MATCH ────────────────────────────────────────
+const TapPairsMatchView = ({ slide, onNext }: { slide: MockSlide; onNext: () => void }) => {
+  const left = slide.leftTerms || [];
+  const right = slide.rightMatches || [];
+  const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const [matchedIndices, setMatchedIndices] = useState<Set<number>>(new Set());
+  const [flashError, setFlashError] = useState<number | null>(null);
+
+  const handleRightTap = (ri: number) => {
+    if (selectedLeft === null || matchedIndices.has(ri)) return;
+    if (selectedLeft === ri) {
+      // correct match (same index pairing)
+      setMatchedIndices(prev => new Set([...prev, ri]));
+      setSelectedLeft(null);
+    } else {
+      // wrong
+      setFlashError(ri);
+      setTimeout(() => setFlashError(null), 500);
+      setSelectedLeft(null);
+    }
+  };
+
+  const canContinue = matchedIndices.size === left.length;
+
+  return (
+    <View style={s.slideFrame}>
+      <View style={s.slideContent}>
+        <Text style={s.slideEmoji}>{slide.emoji}</Text>
+        <Text style={s.slidePrompt}>{slide.prompt}</Text>
+        <View style={s.pairsContainer}>
+          {/* Left column */}
+          <View style={s.pairsColumn}>
+            {left.map((term, i) => {
+              const isMatched = matchedIndices.has(i);
+              const isActive = selectedLeft === i;
+              return (
+                <Pressable key={`l-${i}`} onPress={() => !isMatched && setSelectedLeft(i)} style={[s.pairBtn, isMatched && s.pairBtnMatched, isActive && s.pairBtnActive]}>
+                  <Text style={[s.pairBtnText, isMatched && { color: '#166534' }, isActive && { color: '#6D28D9' }]}>{term}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {/* Right column */}
+          <View style={s.pairsColumn}>
+            {right.map((term, i) => {
+              const isMatched = matchedIndices.has(i);
+              const isError = flashError === i;
+              return (
+                <Pressable key={`r-${i}`} onPress={() => handleRightTap(i)} style={[s.pairBtn, isMatched && s.pairBtnMatched, isError && s.pairBtnError]}>
+                  <Text style={[s.pairBtnText, isMatched && { color: '#166534' }, isError && { color: '#B91C1C' }]}>{term}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+      <Pressable onPress={() => canContinue && onNext()} disabled={!canContinue} style={[s.slideActionBtn, !canContinue && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}>
+        <Text style={[s.slideActionText, !canContinue && { color: '#AAA' }]}>Continue</Text>
+        <MaterialCommunityIcons name="arrow-right" size={24} color={canContinue ? '#FFF' : '#AAA'} />
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── SLIDER GUESS PERCENT ───────────────────────────────────
+const SliderGuessPercentView = ({ slide, onNext }: { slide: MockSlide; onNext: () => void }) => {
+  const target = slide.targetPercent || 50;
+  const [guess, setGuess] = useState(50);
+  const [revealed, setRevealed] = useState(false);
+
+  const handleCheck = () => setRevealed(true);
+  const diff = Math.abs(guess - target);
+  const isClose = diff <= 10;
+
+  return (
+    <View style={s.slideFrame}>
+      <View style={s.slideContent}>
+        <Text style={s.slideEmoji}>{slide.emoji}</Text>
+        <Text style={s.slidePrompt}>{slide.prompt}</Text>
+
+        {/* Big % display */}
+        <View style={s.percentDisplay}>
+          <Text style={[s.percentNumber, revealed && { color: isClose ? '#059669' : '#DC2626' }]}>
+            {revealed ? target : guess}%
+          </Text>
+          {revealed && (
+            <Text style={[s.percentLabel, { color: isClose ? '#059669' : '#DC2626' }]}>
+              {isClose ? '✅ Excellent Estimate!' : `Your guess: ${guess}%`}
+            </Text>
+          )}
+        </View>
+
+        {/* Track */}
+        <View style={s.sliderTrack}>
+          <View style={[s.sliderFill, { width: `${revealed ? target : guess}%`, backgroundColor: revealed ? (isClose ? '#059669' : '#DC2626') : '#7C3AED' }]} />
+          {revealed && (
+            <View style={[s.sliderMarker, { left: `${target}%` }]}>
+              <Text style={s.sliderMarkerText}>{target}%</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Adjust buttons */}
+        {!revealed && (
+          <View style={s.sliderControls}>
+            <Pressable onPress={() => setGuess(Math.max(0, guess - 5))} style={s.sliderAdjustBtn}><Text style={s.sliderAdjustText}>−5</Text></Pressable>
+            <Pressable onPress={() => setGuess(Math.max(0, guess - 1))} style={s.sliderAdjustBtn}><Text style={s.sliderAdjustText}>−1</Text></Pressable>
+            <Text style={s.sliderCurrentText}>{guess}%</Text>
+            <Pressable onPress={() => setGuess(Math.min(100, guess + 1))} style={s.sliderAdjustBtn}><Text style={s.sliderAdjustText}>+1</Text></Pressable>
+            <Pressable onPress={() => setGuess(Math.min(100, guess + 5))} style={s.sliderAdjustBtn}><Text style={s.sliderAdjustText}>+5</Text></Pressable>
+          </View>
+        )}
+      </View>
+      <Pressable onPress={revealed ? onNext : handleCheck} style={s.slideActionBtn}>
+        <Text style={s.slideActionText}>{revealed ? 'Continue' : 'Check Answer'}</Text>
+        <MaterialCommunityIcons name={revealed ? 'arrow-right' : 'eye-outline'} size={24} color="#FFF" />
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── CHART STORY TAP ────────────────────────────────────────
+const ChartStoryTapView = ({ slide, onNext }: { slide: MockSlide; onNext: () => void }) => {
+  const choices = slide.choices || [];
+  const correctIndex = slide.correctChoiceIndex ?? 0;
+  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
+  const revealed = selectedChoice !== null;
+  const isCorrect = selectedChoice === correctIndex;
+
+  // Mini chart data: simulated price bars
+  const chartBars = [40, 48, 42, 55, 60, 52, 58, 50, 45, 38, 42];
+  const resultBars = isCorrect ? [30, 22, 18] : [50, 55, 62]; // down vs up
+
+  return (
+    <View style={s.slideFrame}>
+      <View style={s.slideContent}>
+        <Text style={s.slideEmoji}>{slide.emoji}</Text>
+        <Text style={s.slidePrompt}>{slide.prompt}</Text>
+
+        {/* Mini chart visualization */}
+        <View style={s.miniChart}>
+          <View style={s.chartBarsRow}>
+            {chartBars.map((h, i) => (
+              <View key={`b-${i}`} style={[s.chartBar, { height: h }]} />
+            ))}
+            {revealed && resultBars.map((h, i) => (
+              <View key={`r-${i}`} style={[s.chartBar, { height: h, backgroundColor: isCorrect ? '#059669' : '#DC2626' }]} />
+            ))}
+            {!revealed && (
+              <View style={s.chartCutoff}>
+                <Text style={s.chartCutoffText}>?</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Choice buttons */}
+        <View style={s.chartChoices}>
+          {choices.map((choice, i) => {
+            const isActive = selectedChoice === i;
+            const isRight = revealed && i === correctIndex;
+            const isWrong = revealed && isActive && !isRight;
+            return (
+              <Pressable key={i} onPress={() => !revealed && setSelectedChoice(i)} style={[s.chartChoiceBtn, isRight && s.chartChoiceBtnCorrect, isWrong && s.chartChoiceBtnWrong, isActive && !revealed && s.chartChoiceBtnActive]}>
+                <Text style={[s.chartChoiceText, (isRight || isWrong) && { color: '#FFF' }]}>{choice}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <Pressable onPress={() => revealed && onNext()} disabled={!revealed} style={[s.slideActionBtn, !revealed && { opacity: 0.5, backgroundColor: '#E5E5E5' }]}>
+        <Text style={[s.slideActionText, !revealed && { color: '#AAA' }]}>Continue</Text>
+        <MaterialCommunityIcons name="arrow-right" size={24} color={revealed ? '#FFF' : '#AAA'} />
+      </Pressable>
+    </View>
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN SCREEN
@@ -568,6 +806,12 @@ export default function LearnScreen() {
         return <CompareEquationView slide={item} onNext={nextSlide} />;
       case 'IMAGE_LABEL_MATCH':
         return <ImageLabelMatchView slide={item} onNext={nextSlide} />;
+      case 'TAP_PAIRS_MATCH':
+        return <TapPairsMatchView slide={item} onNext={nextSlide} />;
+      case 'SLIDER_GUESS_PERCENT':
+        return <SliderGuessPercentView slide={item} onNext={nextSlide} />;
+      case 'CHART_STORY_TAP':
+        return <ChartStoryTapView slide={item} onNext={nextSlide} />;
       case 'STANDARD_END':
       default:
         return (
@@ -641,11 +885,29 @@ export default function LearnScreen() {
     const mascotSlot = MASCOT_SLOTS[index];
     const isPressed = pressedNodeId === node.id;
 
+    const hasCourseForLandmark = !!MOCK_COURSES[node.id];
+
     const nodeElement = isLandmark ? (
       <View style={s.nodeWrapper}>
-        <RNAnimated.Text style={[s.landmarkEmoji, node.status === 'active' && { transform: [{ translateY: bounceAnim }] }, node.status === 'locked' && { opacity: 0.45 }]}>
-          🏛️
-        </RNAnimated.Text>
+        {/* Landmark tooltip */}
+        {isPressed && hasCourseForLandmark && (
+          <View style={s.floatingLabel}>
+            <Text style={s.floatingLabelText}>{node.title}</Text>
+            <Text style={s.floatingLabelHint}>Tap again to start</Text>
+            <View style={s.floatingLabelArrow} />
+          </View>
+        )}
+        {hasCourseForLandmark && node.status !== 'locked' ? (
+          <Pressable onPress={() => handleNodePress(node)} style={({ pressed }) => [pressed && { transform: [{ scale: 0.95 }] }]}>
+            <RNAnimated.Text style={[s.landmarkEmoji, node.status === 'active' && { transform: [{ translateY: bounceAnim }] }]}>
+              🏛️
+            </RNAnimated.Text>
+          </Pressable>
+        ) : (
+          <RNAnimated.Text style={[s.landmarkEmoji, node.status === 'active' && { transform: [{ translateY: bounceAnim }] }, node.status === 'locked' && { opacity: 0.45 }]}>
+            🏛️
+          </RNAnimated.Text>
+        )}
         <Text style={[s.landmarkLabel, { color: node.status === 'locked' ? THEME.textMuted : accent }]}>{node.title}</Text>
       </View>
     ) : (
@@ -698,7 +960,7 @@ export default function LearnScreen() {
   const renderSectionDivider = () => (
     <View style={s.sectionDivider}>
       <View style={s.dividerLine} />
-      <View style={s.dividerPill}><Text style={s.dividerPillText}>📉  BEARISH TRACK</Text></View>
+      <View style={s.dividerPill}><Text style={s.dividerPillText}>🏦  CORPORATE FINANCE</Text></View>
       <View style={s.dividerLine} />
     </View>
   );
